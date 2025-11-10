@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from app.db import engine, init_db
 from app.models import User, GiftList, Membership, Group, ListGroup
+from app.deps import get_session, get_current_user
 from app.routers import users, lists, groups, claims
 from app.auth import SECRET, ALGO
 
@@ -91,3 +92,40 @@ def account(request: Request):
 @app.on_event("startup")
 def on_startup():
     init_db()
+
+
+@app.get("/about")
+def about(request: Request):
+    return templates.TemplateResponse("about.html", {"request": request})
+
+
+@app.get("/lists")
+def my_lists(
+    request: Request,
+    session: Session = Depends(get_session),
+    me: User = Depends(get_current_user),
+):
+    lists = session.exec(select(GiftList).where(GiftList.owner_id == me.id)).all()
+    return templates.TemplateResponse(
+        "my_lists.html",
+        {"request": request, "me": me, "lists": lists},
+    )
+
+
+@app.get("/groups")
+def my_groups(
+    request: Request,
+    session: Session = Depends(get_session),
+    me: User = Depends(get_current_user),
+):
+    memberships = session.exec(select(Membership).where(Membership.user_id == me.id)).all()
+    group_ids = [m.group_id for m in memberships]
+    groups = (
+        session.exec(select(Group).where(Group.id.in_(group_ids))).all()
+        if group_ids
+        else []
+    )
+    return templates.TemplateResponse(
+        "my_groups.html",
+        {"request": request, "me": me, "groups": groups},
+    )

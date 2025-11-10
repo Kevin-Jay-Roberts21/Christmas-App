@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>My Lists</h2>
+<section class="card">
+  <div class="card-header">
+    <h3>Your Lists</h3>
+    <a class="btn" href="/lists/new">Create List</a>
+  </div>
+  {% if lists|length == 0 %}
+    <p>You don’t have any lists yet. Click “Create List” to get started.</p>
+  {% else %}
+    <ul>
+      {% for gl in lists %}
+        <li>
+          <a href="/lists/{{ gl.id }}">{{ gl.name }}</a>
+          <span class="muted">({{ gl.items|length if gl.items is defined else '' }} items)</span>
+          &nbsp;—&nbsp;<a href="/lists/{{ gl.id }}/edit">Edit</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+{% endblock %}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="manifest" href="/manifest.webmanifest">
   <script defer src="/sw.js"></script>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=3">
   <title>Christmas App</title>
 </head>
 <body>
@@ -15,6 +15,12 @@
       <button>Logout</button>
     </form>
   </header>
+  <nav class="tabs" role="tablist">
+    <a href="/about"  class="tab {% if request.url.path.startswith('/about') %}active{% endif %}">About</a>
+    <a href="/lists"  class="tab {% if request.url.path.startswith('/lists') %}active{% endif %}">My Lists</a>
+    <a href="/groups" class="tab {% if request.url.path.startswith('/groups') %}active{% endif %}">My Groups</a>
+    <a href="/account" class="tab {% if request.url.path.startswith('/account') %}active{% endif %}">My Account</a>
+  </nav>
 
   <div id="toast" class="toast"></div>
 

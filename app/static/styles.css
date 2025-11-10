@@ -21,3 +21,109 @@ button[disabled] { background:#9ca3af; cursor:not-allowed; }
 .toast.show { opacity:1; }
 .toast.fade { opacity:0; transition: opacity 1.5s ease; }
 .icon { margin-left:6px; }
+/* Tabs */
+.tabs { display:flex; gap:8px; padding:8px 16px; background:#e9f5f0; border-bottom:1px solid #cbd5e1; }
+.tabs a { padding:8px 12px; border-radius:999px; text-decoration:none; color:#065f46; }
+.tabs a.active { background:white; box-shadow:0 1px 3px rgba(0,0,0,.08); color:#0b8457; }
+.card-header { display:flex; align-items:center; justify-content:space-between; }
+.muted { color:#6b7280; font-size:.9em; }
+/* --- Navigation Tabs (pill buttons) --- */
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;                 /* light, neutral bar */
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* kill underline with high specificity (covers all link states) */
+.tabs .tab,
+.tabs .tab:link,
+.tabs .tab:visited,
+.tabs .tab:hover,
+.tabs .tab:active,
+.tabs .tab:focus {
+  text-decoration: none !important;
+}
+
+/* base pill */
+.tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  line-height: 1;
+  color: #065f46;                       /* deep green text */
+  background: #ffffff;
+  border: 1px solid #d1fae5;            /* pale green border */
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  transition: transform .15s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+  will-change: transform;
+}
+
+/* hover/focus */
+.tabs .tab:hover,
+.tabs .tab:focus {
+  background: #ecfdf5;                  /* minty hover */
+  color: #047857;
+  border-color: #a7f3d0;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,.08);
+  outline: none;
+}
+
+/* active/current tab */
+.tabs .tab.active {
+  color: #ffffff;
+  background: #0b8457;                  /* theme green */
+  border-color: #0b8457;
+  box-shadow: 0 4px 12px rgba(11,132,87,.25);
+}
+
+/* small underline accent under active tab */
+.tabs .tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 25%;
+  width: 50%;
+  height: 3px;
+  border-radius: 2px;
+  background: #0b8457;
+}
+
+/* compact on small screens */
+@media (max-width: 640px) {
+  .tabs {
+    gap: 8px;
+    padding: 8px;
+    overflow-x: auto;
+  }
+  .tabs .tab {
+    padding: 8px 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+/* Tabs – force styles to beat :link/:visited */
+.tabs .tab,
+.tabs .tab:link,
+.tabs .tab:visited,
+.tabs .tab:hover,
+.tabs .tab:active,
+.tabs .tab:focus {
+  text-decoration: none !important;
+}
+
+/* ensure ::after positions relative to the pill */
+.tabs .tab {
+  position: relative; /* needed for the active underline accent */
+}
+
