@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Join a Group</h2>
+<form method="post" action="/groups/join" class="card">
+  <label>Group ID or Name
+    <input name="key" placeholder="e.g., 12 or 'RobertsFamily' " required>
+  </label>
+  <label>Choose a list to show this group
+    <select name="selected_list_id" required>
+      {% if lists and lists|length > 0 %}
+        {% for L in lists %}
+          <option value="{{ L.id }}">{{ L.name }}</option>
+        {% endfor %}
+      {% else %}
+        <p class="muted">You don’t have any lists yet.</p>
+      {% endif %}
+    </select>
+  </label>
+  <button>Join</button>
+</form>
+{% endblock %}

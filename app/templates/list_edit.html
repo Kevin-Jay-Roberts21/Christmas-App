@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Manage List: {{ list.name }}</h2>
+
+<form method="post" action="/lists/{{list.id}}/item">
+  <div>
+    <label>Item name
+      <input name="name" required>
+    </label>
+  </div>
+  <div>
+    <label>Link
+      <input name="url" type="url" placeholder="https://...">
+    </label>
+  </div>
+  <div>
+    <label>Notes
+      <input name="notes">
+    </label>
+  </div>
+  <div>
+    <label>
+      <input type="checkbox" name="is_present" value="1">
+      Mark as 🎁 (I REALLY want this)
+    </label>
+  </div>
+  <button type="submit">Add item</button>
+</form>
+
+<hr>
+
+<h3>Your visible items</h3>
+<ul>
+  {% for it in items %}
+  <li>
+    {% if it.is_present %}🎁 {% endif %}
+    {{ it.name }}
+    {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
+    {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}
+    <form method="post" action="/lists/{{ list.id }}/item/{{ it.id }}/delete" style="display:inline">
+      <button type="submit">Delete</button>
+    </form>
+  </li>
+  {% else %}
+  <li><em>No items yet.</em></li>
+  {% endfor %}
+</ul>
+
+<p><a href="/account">Back to account</a></p>
+{% endblock %}

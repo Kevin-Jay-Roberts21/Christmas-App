@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Join a group</h2>
+<form method="post" action="/groups/join">
+  <div>
+    <label>Group ID
+      <input name="group_id" type="number" required>
+    </label>
+  </div>
+  <div>
+    <label>Which of your lists should be visible in this group?
+      <select name="selected_list_id" required>
+        {% for gl in my_lists %}
+          <option value="{{ gl.id }}">{{ gl.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <button type="submit">Join</button>
+</form>
+{% endblock %}

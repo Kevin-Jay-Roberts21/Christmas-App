@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Find a group</h2>
+<form method="post" action="/groups/search">
+  <input name="q" placeholder="Enter group ID or name" value="{{ q|default('') }}">
+  <button type="submit">Search</button>
+</form>
+
+{% if results is not none %}
+  <h3>Results</h3>
+  <ul>
+  {% for g in results %}
+    <li>
+      <strong>{{ g.name }}</strong> (ID {{ g.id }})
+      <a href="/groups/join">Request to join</a>
+    </li>
+  {% else %}
+    <li><em>No results.</em></li>
+  {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}

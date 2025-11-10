@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <script defer src="/sw.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>Christmas App</title>
+</head>
+<body>
+  <header class="topbar">
+    <h1>🎄 Christmas App</h1>
+    <form action="/auth/logout" method="post" class="logout">
+      <button>Logout</button>
+    </form>
+  </header>
+
+  <div id="toast" class="toast"></div>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Made with Python • PWA installable</footer>
+
+  <script>
+    // Flash toast via cookie "flash"
+    (function(){
+      const m = document.cookie.split('; ').find(x => x.startsWith('flash='));
+      if(m){
+        const val = decodeURIComponent(m.split('=').slice(1).join('='));
+        const t = document.getElementById('toast');
+        t.textContent = val;
+        t.classList.add('show');
+        setTimeout(() => t.classList.add('fade'), 50);
+        setTimeout(() => { t.classList.remove('show','fade'); }, 3200);
+        // clear cookie
+        document.cookie = "flash=; Max-Age=0; path=/";
+      }
+    })();
+
+    // confirm checkbox helper
+    function confirmClaim(cb, url){
+      if(!cb.checked) { cb.checked = false; return false; } // never allow uncheck
+      const ok = confirm("Checking this box indicates that you have or plan to give this person this item. Are you sure you want to continue?");
+      if(!ok){ cb.checked = false; return false; }
+      // submit via POST (no JS libs)
+      const f = document.createElement('form');
+      f.method = 'POST'; f.action = url;
+      document.body.appendChild(f); f.submit();
+      return true;
+    }
+  </script>
+</body>
+</html>

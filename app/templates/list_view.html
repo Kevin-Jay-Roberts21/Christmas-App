@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ list.name }}{% if is_owner %} (your list){% endif %}</h2>
+
+{% if is_owner %}
+<p><a href="/lists/{{list.id}}/edit">Edit this list</a></p>
+{% endif %}
+
+<ul>
+  {% for it in items %}
+    <li>
+      {% if it.is_present %}🎁 {% endif %}
+      {% if not is_owner and it.added_by_id != list.owner_id %}🦌 {% endif %}
+      {{ it.name }}
+      {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
+      {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}
+    </li>
+  {% else %}
+    <li><em>No items yet.</em></li>
+  {% endfor %}
+</ul>
+
+<p><a href="/account">Back to account</a></p>
+{% endblock %}

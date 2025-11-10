@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Log in</h2>
+{% if error %}
+<div style="padding:.75rem; border:1px solid #e11d48; background:#fee2e2; color:#991b1b; margin-bottom:1rem; border-radius:.5rem;">
+  {{ error }}
+</div>
+{% endif %}
+{% if info %}
+<div style="padding:.75rem; border:1px solid #16a34a; background:#dcfce7; color:#14532d; margin-bottom:1rem; border-radius:.5rem;">
+  {{ info }}
+</div>
+{% endif %}
+
+<form method="post" action="/auth/login">
+  <label>Username <input name="username" required></label><br>
+  <label>Password <input name="password" type="password" required></label><br>
+  <button type="submit">Log in</button>
+</form>
+
+<p>No account? <a href="/auth/signup">Sign up</a></p>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ group.name }} {% if group.leader_id == me.id %}<span style="font-size:.8em;">(You are the leader)</span>{% endif %}</h2>
+
+{% if info %}
+<p style="padding:.5rem; background:#ecfeff; border:1px solid #06b6d4; border-radius:.5rem;">{{ info }}</p>
+{% endif %}
+
+<h3>Members</h3>
+<ul>
+  {% for u in members %}
+    <li>
+      {% if u.id == group.leader_id %}⭐ {% endif %}
+      <a href="/lists/{{ user_list_map[u.id].id if user_list_map.get(u.id) else '' }}">
+        {{ u.username }}
+      </a>
+      {% if not user_list_map.get(u.id) %}
+        <em>(no list visible here)</em>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+
+{% if me.id == group.leader_id %}
+  <p><a href="/groups/{{ group.id }}/manage">Manage requests & invites</a></p>
+{% endif %}
+
+{% for gl in visible_lists %}
+  <h3>{{ gl.name }}{% if gl.owner_id == me.id %} (your list){% endif %}</h3>
+  <ul>
+    {% for it in items_for_list[gl.id] %}
+      <li>
+        {% if it.is_present %}🎁 {% endif %}
+        {% if gl.owner_id != me.id and it.added_by_id != gl.owner_id %}🦌 {% endif %}
+        {{ it.name }}
+        {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
+        {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}
+      </li>
+    {% else %}
+      <li><em>No items yet.</em></li>
+    {% endfor %}
+  </ul>
+{% endfor %}
+{% endblock %}

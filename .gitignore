@@ -1,0 +1,52 @@
+# -------------------------
+# Python / FastAPI Project
+# -------------------------
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Python cache + mypy + pytest
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+
+# Environment variables / secrets
+.env
+.env.*
+*.sqlite3
+*.db
+
+# Alembic
+alembic/__pycache__/
+
+# Uvicorn reload artifacts
+*.pid
