@@ -186,11 +186,12 @@ def invite_member(
 
     mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == invited.id)).first()
     if not mem:
-        mem = Membership(group_id=g.id, user_id=invited.id, selected_list_id=selected_list_id, is_approved=True)
+        mem = Membership(group_id=g.id, user_id=invited.id, selected_list_id=None, is_approved=False)
         session.add(mem)
     else:
-        mem.is_approved = True
-        if selected_list_id: mem.selected_list_id = selected_list_id
+        # keep as pending until invitee accepts
+        mem.is_approved = False
+        mem.selected_list_id = None
     session.commit()
     return redirect_get(f"/groups/{g.id}/manage", {"info": "User invited."})
 
@@ -251,3 +252,44 @@ def group_view(
             "info": info,
         },
     )
+
+
+@router.post("/{group_id}/accept_invite")
+def accept_invite(
+    group_id: int,
+    selected_list_id: int = Form(...),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g: raise HTTPException(404, "Group not found")
+
+    mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)).first()
+    if not mem: raise HTTPException(404, "Invite not found")
+    if mem.is_approved:
+        return redirect_get("/groups", {"info":"Already a member."})
+
+    gl = session.get(GiftList, selected_list_id)
+    if not gl or gl.owner_id != user.id:
+        return redirect_get("/groups", {"error": "Please select one of your lists."})
+
+    mem.selected_list_id = gl.id
+    mem.is_approved = True
+    if not session.exec(select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == gl.id)).first():
+        session.add(ListGroup(group_id=g.id, list_id=gl.id))
+    session.commit()
+    return redirect_get("/groups", {"info": "Invite accepted."})
+
+@router.post("/{group_id}/decline_invite")
+def decline_invite(
+    group_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g: raise HTTPException(404, "Group not found")
+    mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)).first()
+    if not mem: return redirect_get("/groups")
+    session.delete(mem)
+    session.commit()
+    return redirect_get("/groups", {"info": "Invite declined."})

@@ -2,6 +2,46 @@
 {% block content %}
 <h2>My Groups</h2>
 
+
+<section class="card">
+  <div class="card-header">
+    <h3>Invitations for you</h3>
+  </div>
+  {% set invites = [] %}
+  {% for g in groups %}
+    {% set mem = mem_map.get(g.id) %}
+    {% if mem and not mem.is_approved %}
+      {% set _ = invites.append((g, mem)) %}
+    {% endif %}
+  {% endfor %}
+
+  {% if invites|length == 0 %}
+    <p>No invitations right now.</p>
+  {% else %}
+    <ul>
+      {% for g, mem in invites %}
+        <li>
+          <strong>{{ g.name }}</strong>
+          <form method="post" action="/groups/{{ g.id }}/accept_invite" style="display:inline-block; margin-left:8px;">
+            <label style="margin-right:8px;">Select your list
+              <select name="selected_list_id" required>
+                {% for gl in me.lists %}
+                  <option value="{{ gl.id }}">{{ gl.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button class="btn" type="submit">Accept</button>
+          </form>
+          <form method="post" action="/groups/{{ g.id }}/decline_invite" style="display:inline-block; margin-left:6px;">
+            <button class="btn" type="submit">Decline</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+
 <section class="card">
   <div class="card-header">
     <h3>Groups you’re in</h3>
