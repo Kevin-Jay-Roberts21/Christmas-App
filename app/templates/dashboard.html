@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+{% set mem_map = mem_map|default({}) %}
+{% set list_for_group = list_for_group|default({}) %}
 
 <h2>Account</h2>
 
@@ -7,30 +9,18 @@
 <section class="card">
   <div class="card-header">
     <h3>Your Lists</h3>
-    <a class="btn" href="/lists/new">Create List</a>  <!-- always available -->
+    <a class="btn" href="/lists/new">Create List</a>
   </div>
 
   {% if lists|length == 0 %}
     <p>You don’t have any lists yet. Click “Create List” to get started.</p>
   {% else %}
     <ul>
-      {% for list in lists %}
+      {% for lst in lists %}
         <li>
-          <strong>{{ list.name }}</strong>
-          <a class="btn btn-small" href="/lists/{{list.id}}">View List</a>
-
-          <!-- show what groups this list is applied to -->
-          {% set gl = groups_for_list.get(list.id, []) %}
-          {% if gl and gl|length > 0 %}
-            <div class="muted">
-              Applied to:
-              {% for G in gl %}
-                <a href="/groups/{{ G.id }}">{{ G.name }}</a>{% if not loop.last %}, {% endif %}
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="muted">Not applied to any group yet.</div>
-          {% endif %}
+          <strong>{{ lst.name }}</strong>
+          <a class="btn btn-small" href="/lists/{{ lst.id }}">View</a>
+          <a class="btn btn-small" href="/lists/{{ lst.id }}/edit">Edit</a>
         </li>
       {% endfor %}
     </ul>
@@ -44,22 +34,25 @@
   </div>
 
   {% if groups|length == 0 %}
-    <p>You’re not in any groups yet. <a href="/groups/join">Join</a> or <a href="/groups/new">Create</a> a group.</p>
+    <p>You’re not in any groups yet.</p>
   {% else %}
     <ul>
-      {% for G in groups %}
+      {% for g in groups %}
+        {% set mem = mem_map.get(g.id) %}
         <li>
-          <strong>{{ G.name }}</strong>
-          <a class="btn btn-small" href="/groups/{{ G.id }}">View Group</a>
-
-          <!-- show which of YOUR lists is applied to this group -->
-          {% set applied = list_for_group.get(G.id) %}
-          {% if applied %}
-            <div class="muted">
-              Your applied list: <a href="/lists/{{ applied.id }}">{{ applied.name }}</a>
-            </div>
+          <strong>{{ g.name }}</strong>
+          {% if mem and not mem.is_approved and not mem.is_denied %}
+            <span class="tag">Pending</span>
+          {% elif mem and mem.is_denied %}
+            <span class="tag" style="background:#fee2e2;color:#991b1b;">Denied</span>
           {% else %}
-            <div class="muted">You haven’t applied any of your lists to this group yet.</div>
+            <a href="/groups/{{ g.id }}" class="btn">View Group</a>
+          {% endif %}
+
+          {% if mem and mem.selected_list_id %}
+            <small> Your applied list:
+              <a href="/lists/{{ mem.selected_list_id }}">View List</a>
+            </small>
           {% endif %}
         </li>
       {% endfor %}

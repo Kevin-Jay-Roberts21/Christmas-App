@@ -108,15 +108,28 @@ def group_join_request(
     if not gl or gl.owner_id != user.id:
         return redirect_get("/groups/join", {"error": "Invalid list selection."})
 
-    mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)).first()
+    mem = session.exec(
+    select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)
+    ).first()
+
     if mem:
-        # update their selected list, keep approval state
         mem.selected_list_id = gl.id
+        mem.is_approved = False
+        mem.is_denied = False
+        mem.is_invite = False                 # <-- ensure this is NOT treated as an invitation
     else:
-        mem = Membership(group_id=g.id, user_id=user.id, selected_list_id=gl.id, is_approved=False)
+        mem = Membership(
+            group_id=g.id,
+            user_id=user.id,
+            selected_list_id=gl.id,
+            is_approved=False,
+            is_denied=False,
+            is_invite=False                   # <-- request
+        )
         session.add(mem)
+
     session.commit()
-    return redirect_get(f"/groups/{g.id}", {"info": "Join request sent. Waiting for leader approval."})
+    return redirect_get("/groups/join", {"info": "Request sent to the group leader."})
 
 # ---------- Leader manage: approve / invite --------------------------------
 
@@ -131,8 +144,21 @@ def manage_group(
     if not g: raise HTTPException(404, "Group not found")
     if g.leader_id != user.id: raise HTTPException(403, "Only the leader can manage the group")
 
-    pending = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.is_approved == False)).all()  # noqa: E712
-    approved = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.is_approved == True)).all()  # noqa: E712
+    pending = session.exec(
+    select(Membership).where(
+            Membership.group_id == g.id,
+            Membership.is_approved == False,  # noqa: E712
+            Membership.is_denied == False
+        )
+    ).all()
+
+    approved = session.exec(
+        select(Membership).where(
+            Membership.group_id == g.id,
+            Membership.is_approved == True,  # noqa: E712
+            Membership.is_denied == False
+        )
+    ).all()
 
     # map users and lists
     def user_of(mem): return session.get(User, mem.user_id)
@@ -169,6 +195,26 @@ def approve_member(
     session.commit()
     return redirect_get(f"/groups/{g.id}/manage")
 
+@router.post("/{group_id}/deny")
+def deny_member(
+    group_id: int,
+    membership_id: int = Form(...),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g or g.leader_id != user.id:
+        raise HTTPException(403, "Leader only")
+
+    mem = session.get(Membership, membership_id)
+    if not mem or mem.group_id != g.id:
+        raise HTTPException(404, "Membership not found")
+
+    mem.is_approved = False
+    mem.is_denied = True
+    session.commit()
+    return redirect_get(f"/groups/{g.id}/manage")
+
 @router.post("/{group_id}/invite")
 def invite_member(
     group_id: int,
@@ -184,14 +230,23 @@ def invite_member(
     ).first()
     if not invited: raise HTTPException(404, "User not found")
 
-    mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == invited.id)).first()
-    if not mem:
-        mem = Membership(group_id=g.id, user_id=invited.id, selected_list_id=None, is_approved=False)
-        session.add(mem)
-    else:
-        # keep as pending until invitee accepts
+    mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == target_user.id)).first()
+
+    if mem:
         mem.is_approved = False
-        mem.selected_list_id = None
+        mem.is_denied = False
+        mem.is_invite = True                  # <-- leader-initiated
+    else:
+        mem = Membership(
+            group_id=g.id,
+            user_id=target_user.id,
+            selected_list_id=None,
+            is_approved=False,
+            is_denied=False,
+            is_invite=True                    # <-- invitation
+        )
+        session.add(mem)
+
     session.commit()
     return redirect_get(f"/groups/{g.id}/manage", {"info": "User invited."})
 
@@ -293,3 +348,22 @@ def decline_invite(
     session.delete(mem)
     session.commit()
     return redirect_get("/groups", {"info": "Invite declined."})
+
+@router.post("/{group_id}/remove_denied")
+def remove_denied(
+    group_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g:
+        return redirect_get("/groups")
+
+    mem = session.exec(
+        select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)
+    ).first()
+    if mem and mem.is_denied:
+        session.delete(mem)
+        session.commit()
+
+    return redirect_get("/groups")

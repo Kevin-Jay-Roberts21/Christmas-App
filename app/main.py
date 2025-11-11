@@ -58,42 +58,48 @@ def account(request: Request):
         return RedirectResponse(url="/auth/login", status_code=303)
 
     with Session(engine) as s:
-        my_lists = s.exec(select(GiftList).where(GiftList.owner_id == user.id)).all()
-        my_groups = s.exec(
-            select(Group).where(Group.id.in_(
-                select(Membership.group_id).where(Membership.user_id == user.id)
-            ))
+        my_lists = s.exec(
+            select(GiftList).where(GiftList.owner_id == user.id)
         ).all()
 
-        # which lists are visible in which groups
+        # memberships for this user
+        my_mems = s.exec(
+            select(Membership).where(Membership.user_id == user.id)
+        ).all()
+        mem_map = {m.group_id: m for m in my_mems}   # <-- build the map
+
+        # groups the user is related to (leader or member/request)
+        my_groups = s.exec(
+            select(Group).where(
+                Group.id.in_(select(Membership.group_id).where(Membership.user_id == user.id))
+            )
+        ).all()
+
+        # optional helpers you already had
         list_for_group = {}
         groups_for_list = {}
 
-        # Maps only YOUR applied list per group (not others')
-        my_mems = s.exec(select(Membership).where(Membership.user_id == user.id)).all()
-        mem_by_gid = {m.group_id: m for m in my_mems}
         for g in my_groups:
-            mem = mem_by_gid.get(g.id)
+            mem = mem_map.get(g.id)
             if mem and mem.selected_list_id:
                 gl = s.get(GiftList, mem.selected_list_id)
                 if gl and gl.owner_id == user.id:
                     list_for_group[g.id] = gl
-
-            # Also build reverse index groups_for_list for YOUR lists
-            if mem and mem.selected_list_id:
                 groups_for_list.setdefault(mem.selected_list_id, []).append(g)
 
         return templates.TemplateResponse(
-        "dashboard.html",
-        {
-            "request": request,
-            "me": user,
-            "lists": my_lists,
-            "groups": my_groups,
-            "groups_for_list": groups_for_list,
-            "list_for_group": list_for_group,
-        },
-    )
+            "dashboard.html",
+            {
+                "request": request,
+                "me": user,
+                "lists": my_lists,
+                "groups": my_groups,
+                "groups_for_list": groups_for_list,
+                "list_for_group": list_for_group,
+                "mem_map": mem_map,                    # <-- pass it
+            },
+        )
+
 
 # --- Startup ---
 @app.on_event("startup")

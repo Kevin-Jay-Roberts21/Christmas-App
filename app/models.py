@@ -69,7 +69,9 @@ class Membership(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     selected_list_id: Optional[int] = Field(foreign_key="giftlist.id", default=None)
 
-    is_approved: bool = Field(default=False)  # NEW
+    is_approved: bool = Field(default=False)
+    is_denied: bool = Field(default=False)  
+    is_invite: bool = Field(default=False)
 
     group: Group = Relationship(back_populates="memberships")
     user: "User" = Relationship(back_populates="memberships")

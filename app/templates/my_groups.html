@@ -7,10 +7,11 @@
   <div class="card-header">
     <h3>Invitations for you</h3>
   </div>
+  {# Build invites list: pending + not denied + came from leader #}
   {% set invites = [] %}
   {% for g in groups %}
     {% set mem = mem_map.get(g.id) %}
-    {% if mem and not mem.is_approved %}
+    {% if mem and (not mem.is_approved) and (not mem.is_denied) and mem.is_invite %}
       {% set _ = invites.append((g, mem)) %}
     {% endif %}
   {% endfor %}
@@ -58,8 +59,14 @@
       {% for g in groups %}
         {% set mem = mem_map.get(g.id) %}
         <li>
-          {% if mem and not mem.is_approved %}
+          {% set mem = mem_map.get(g.id) %}
+          {% if mem and not mem.is_approved and not mem.is_denied %}
             <span>{{ g.name }}</span> <span class="tag">Pending</span>
+          {% elif mem and mem.is_denied %}
+            <span>{{ g.name }}</span> <span class="tag" style="background:#fee2e2;color:#991b1b;">Denied</span>
+            <form method="post" action="/groups/{{ g.id }}/remove_denied" style="display:inline;margin-left:6px;">
+              <button class="btn" title="Remove">✕</button>
+            </form>
           {% else %}
             <a href="/groups/{{ g.id }}">{{ g.name }}</a>
             {% if g.leader_id == me.id %}<span class="tag">Leader</span>{% endif %}
