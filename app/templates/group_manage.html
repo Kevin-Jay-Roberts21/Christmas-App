@@ -6,7 +6,7 @@
 <ul>
   {% for mem, u, gl in pending %}
     <li>
-      {{ u.username }} {% if gl %}— wants to show list "<strong>{{ gl.name }}</strong>"{% endif %}
+      {{ u.username }} {% if gl %}— wants to join your group with their list: "<strong>{{ gl.name }}</strong>"{% endif %}
       <form method="post" action="/groups/{{ group.id }}/approve" style="display:inline">
         <input type="hidden" name="membership_id" value="{{ mem.id }}">
         <button type="submit">Approve</button>

@@ -83,20 +83,30 @@ def group_join_form(
     user: User = Depends(get_current_user)
 ):
     my_lists = session.exec(select(GiftList).where(GiftList.owner_id == user.id)).all()
-    return templates.TemplateResponse("group_join.html", {"request": request, "me": user, "my_lists": my_lists})
+    error = request.query_params.get("error")
+    info = request.query_params.get("info")
+    return templates.TemplateResponse("group_join.html", {"request": request, "me": user, "my_lists": my_lists, "error": error, "info": info})
 
 @router.post("/join")
 def group_join_request(
-    group_id: int = Form(...),
+    group_identifier: str = Form(...),
     selected_list_id: int = Form(...),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    g = session.get(Group, group_id)
-    if not g: raise HTTPException(404, "Group not found")
+    # Accept either numeric ID or exact group name
+    g = None
+    ident = group_identifier.strip()
+    if ident.isdigit():
+        g = session.get(Group, int(ident))
+    if not g:
+        g = session.exec(select(Group).where(Group.name == ident)).first()
+    if not g:
+        return redirect_get("/groups/join", {"error": "This group does not exist."})
+
     gl = session.get(GiftList, selected_list_id)
     if not gl or gl.owner_id != user.id:
-        raise HTTPException(400, "Invalid list selection")
+        return redirect_get("/groups/join", {"error": "Invalid list selection."})
 
     mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)).first()
     if mem:

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -68,15 +68,22 @@ def account(request: Request):
         # which lists are visible in which groups
         list_for_group = {}
         groups_for_list = {}
+
+        # Maps only YOUR applied list per group (not others')
+        my_mems = s.exec(select(Membership).where(Membership.user_id == user.id)).all()
+        mem_by_gid = {m.group_id: m for m in my_mems}
         for g in my_groups:
-            glinks = s.exec(select(ListGroup).where(ListGroup.group_id == g.id)).all()
-            for link in glinks:
-                gl = s.get(GiftList, link.list_id)
-                if gl:
-                    groups_for_list.setdefault(gl.id, []).append(g)
+            mem = mem_by_gid.get(g.id)
+            if mem and mem.selected_list_id:
+                gl = s.get(GiftList, mem.selected_list_id)
+                if gl and gl.owner_id == user.id:
                     list_for_group[g.id] = gl
 
-    return templates.TemplateResponse(
+            # Also build reverse index groups_for_list for YOUR lists
+            if mem and mem.selected_list_id:
+                groups_for_list.setdefault(mem.selected_list_id, []).append(g)
+
+        return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
@@ -113,19 +120,17 @@ def my_lists(
 
 
 @app.get("/groups")
-def my_groups(
-    request: Request,
-    session: Session = Depends(get_session),
-    me: User = Depends(get_current_user),
-):
+def my_groups(request: Request, session: Session = Depends(get_session), me: User = Depends(get_current_user)):
     memberships = session.exec(select(Membership).where(Membership.user_id == me.id)).all()
     group_ids = [m.group_id for m in memberships]
-    groups = (
-        session.exec(select(Group).where(Group.id.in_(group_ids))).all()
-        if group_ids
-        else []
-    )
-    return templates.TemplateResponse(
-        "my_groups.html",
-        {"request": request, "me": me, "groups": groups},
-    )
+    groups = session.exec(select(Group).where(Group.id.in_(group_ids))).all() if group_ids else []
+    mem_map = {m.group_id: m for m in memberships}
+    return templates.TemplateResponse("my_groups.html", {"request": request, "me": me, "groups": groups, "mem_map": mem_map})
+
+
+# Redirect 401s (e.g., from dependencies) to login for HTML routes
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 401:
+        return RedirectResponse(url="/auth/login?info=Please+log+in", status_code=303)
+    raise exc

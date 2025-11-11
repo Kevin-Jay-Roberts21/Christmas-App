@@ -16,9 +16,14 @@
   {% else %}
     <ul>
       {% for g in groups %}
+        {% set mem = mem_map.get(g.id) %}
         <li>
-          <a href="/groups/{{ g.id }}">{{ g.name }}</a>
-          {% if g.leader_id == me.id %}<span class="tag">Leader</span>{% endif %}
+          {% if mem and not mem.is_approved %}
+            <span>{{ g.name }}</span> <span class="tag">Pending</span>
+          {% else %}
+            <a href="/groups/{{ g.id }}">{{ g.name }}</a>
+            {% if g.leader_id == me.id %}<span class="tag">Leader</span>{% endif %}
+          {% endif %}
         </li>
       {% endfor %}
     </ul>
