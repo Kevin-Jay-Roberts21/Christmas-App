@@ -119,6 +119,8 @@ def add_item(
     gl = session.get(GiftList, list_id)
     if not gl or gl.owner_id != user.id:
         raise HTTPException(404, "List not found")
+    owner_hidden = user.id != gl.owner_id
+
     it = Item(
         list_id=gl.id,
         name=name,
@@ -126,7 +128,7 @@ def add_item(
         notes=notes or None,
         is_present=bool(is_present),
         added_by_id=user.id,
-        owner_hidden=False,
+        owner_hidden=owner_hidden,
     )
     session.add(it)
     session.commit()
@@ -147,8 +149,10 @@ def delete_item(
     if not it or it.list_id != list_id:
         raise HTTPException(404, "Item not found")
 
-    # Hard delete: once the owner deletes an item from their list,
-    # it disappears for everyone (including in shared group views).
-    session.delete(it)
+    # If the owner deletes their own item, hide it from the owner,
+    # but let others still see it (🦌 rule). If the owner deletes an
+    # item added by others, just keep it hidden from the owner by design.
+    it.owner_hidden = True
+    session.add(it)
     session.commit()
     return redirect_get(f"/lists/{list_id}/edit")

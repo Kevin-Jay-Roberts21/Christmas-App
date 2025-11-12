@@ -53,7 +53,7 @@
       {% for it in items_for_list[gl.id] %}
         <li>
           {% if it.is_present %}🎁 {% endif %}
-          {% if gl.owner_id != me.id and it.added_by_id != gl.owner_id %}🦌 {% endif %}
+          {% if gl.owner_id != me.id and (it.added_by_id != gl.owner_id or it.owner_hidden) %}🦌 {% endif %}
           {{ it.name }}
           {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
           {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}

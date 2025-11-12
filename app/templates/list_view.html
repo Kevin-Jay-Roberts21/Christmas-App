@@ -10,7 +10,7 @@
   {% for it in items %}
     <li>
       {% if it.is_present %}🎁 {% endif %}
-      {% if not is_owner and it.added_by_id != list.owner_id %}🦌 {% endif %}
+      {% if not is_owner and (it.added_by_id != list.owner_id or it.owner_hidden) %}🦌 {% endif %}
       {{ it.name }}
       {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
       {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}
