@@ -399,6 +399,8 @@ def accept_invite(
 
     mem.selected_list_id = gl.id
     mem.is_approved = True
+    mem.is_invite = False
+    mem.is_denied = False
 
     if not session.exec(select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == gl.id)).first():
         session.add(ListGroup(group_id=g.id, list_id=gl.id))

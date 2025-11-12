@@ -2,6 +2,16 @@
 {% block content %}
 <h2>Manage "{{ group.name }}"</h2>
 
+{% set info = request.query_params.get('info') %}
+{% set error = request.query_params.get('error') %}
+{% if info %}
+  <div style="padding:.5rem 1rem; border:1px solid #16a34a; background:#dcfce7; color:#14532d; border-radius:.5rem; margin:.5rem 0;">{{ info }}</div>
+{% endif %}
+{% if error %}
+  <div style="padding:.5rem 1rem; border:1px solid #e11d48; background:#ffe4e6; color:#9f1239; border-radius:.5rem; margin:.5rem 0;">{{ error }}</div>
+{% endif %}
+
+
 <h3>Approved members</h3>
 <ul>
   {% for mem, u, gl in approved %}

@@ -111,8 +111,7 @@ def account(request: Request):
 
 @app.get("/about")
 def about(request: Request):
-    me = getattr(request.state, "user", None)
-    return templates.TemplateResponse("about.html", {"request": request, "me": me})
+    return templates.TemplateResponse("about.html", {"request": request})
 
 
 @app.get("/lists")
@@ -139,7 +138,13 @@ def my_groups(request: Request, session: Session = Depends(get_session), me: Use
     group_ids = [m.group_id for m in non_invite_mems]
     groups = session.exec(select(Group).where(Group.id.in_(group_ids))).all() if group_ids else []
     mem_map = {m.group_id: m for m in memberships}
-    return templates.TemplateResponse("my_groups.html", {"request": request, "me": me, "groups": groups, "mem_map": mem_map, "invites": invites})
+    
+    # fetch my lists and groups for invites
+    my_lists = session.exec(select(GiftList).where(GiftList.owner_id == me.id)).all()
+    inv_group_ids = [m.group_id for m in invites]
+    inv_groups = session.exec(select(Group).where(Group.id.in_(inv_group_ids))).all() if inv_group_ids else []
+    inv_group_map = {g.id: g for g in inv_groups}
+    return templates.TemplateResponse("my_groups.html", {"request": request, "me": me, "groups": groups, "mem_map": mem_map, "invites": invites, "my_lists": my_lists, "inv_group_map": inv_group_map})
 
 
 # Redirect 401s (e.g., from dependencies) to login for HTML routes
