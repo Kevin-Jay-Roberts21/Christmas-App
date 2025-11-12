@@ -147,10 +147,8 @@ def delete_item(
     if not it or it.list_id != list_id:
         raise HTTPException(404, "Item not found")
 
-    # If the owner deletes their own item, hide it from the owner,
-    # but let others still see it (🦌 rule). If the owner deletes an
-    # item added by others, just keep it hidden from the owner by design.
-    it.owner_hidden = True
-    session.add(it)
+    # Hard delete: once the owner deletes an item from their list,
+    # it disappears for everyone (including in shared group views).
+    session.delete(it)
     session.commit()
     return redirect_get(f"/lists/{list_id}/edit")
