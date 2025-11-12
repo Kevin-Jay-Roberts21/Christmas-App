@@ -51,6 +51,7 @@ def home(request: Request):
     return RedirectResponse(url="/auth/login", status_code=303)
 
 # --- Simple account dashboard (uses your templates) ---
+
 @app.get("/account")
 def account(request: Request):
     user = request.state.user
@@ -58,24 +59,26 @@ def account(request: Request):
         return RedirectResponse(url="/auth/login", status_code=303)
 
     with Session(engine) as s:
-        my_lists = s.exec(
-            select(GiftList).where(GiftList.owner_id == user.id)
-        ).all()
+        my_lists = s.exec(select(GiftList).where(GiftList.owner_id == user.id)).all()
 
-        # memberships for this user
-        my_mems = s.exec(
-            select(Membership).where(Membership.user_id == user.id)
-        ).all()
-        mem_map = {m.group_id: m for m in my_mems}   # <-- build the map
+        # All memberships for the current user, build mem_map
+        my_mems = s.exec(select(Membership).where(Membership.user_id == user.id)).all()
+        mem_map = {m.group_id: m for m in my_mems}
 
-        # groups the user is related to (leader or member/request)
-        my_groups = s.exec(
-            select(Group).where(
-                Group.id.in_(select(Membership.group_id).where(Membership.user_id == user.id))
+        from sqlalchemy import or_, and_
+        subq = select(Membership.group_id).where(
+            Membership.user_id == user.id,
+            or_(
+                Membership.is_approved == True,
+                and_(
+                    Membership.is_approved == False,
+                    Membership.is_denied == False,
+                    Membership.is_invite == False  # pending request (not invite)
+                )
             )
-        ).all()
+        )
+        my_groups = s.exec(select(Group).where(Group.id.in_(subq))).all()
 
-        # optional helpers you already had
         list_for_group = {}
         groups_for_list = {}
 
@@ -96,15 +99,9 @@ def account(request: Request):
                 "groups": my_groups,
                 "groups_for_list": groups_for_list,
                 "list_for_group": list_for_group,
-                "mem_map": mem_map,                    # <-- pass it
+                "mem_map": mem_map,
             },
         )
-
-
-# --- Startup ---
-@app.on_event("startup")
-def on_startup():
-    init_db()
 
 
 @app.get("/about")
@@ -127,11 +124,16 @@ def my_lists(
 
 @app.get("/groups")
 def my_groups(request: Request, session: Session = Depends(get_session), me: User = Depends(get_current_user)):
+    # all memberships for this user
     memberships = session.exec(select(Membership).where(Membership.user_id == me.id)).all()
-    group_ids = [m.group_id for m in memberships]
+    # invitations are those marked is_invite == True
+    invites = [m for m in memberships if getattr(m, "is_invite", False) and not m.is_denied and not m.is_approved]
+    # groups to display under "you're in" exclude invitations; pending shown only for true join-requests
+    non_invite_mems = [m for m in memberships if not getattr(m, "is_invite", False)]
+    group_ids = [m.group_id for m in non_invite_mems]
     groups = session.exec(select(Group).where(Group.id.in_(group_ids))).all() if group_ids else []
     mem_map = {m.group_id: m for m in memberships}
-    return templates.TemplateResponse("my_groups.html", {"request": request, "me": me, "groups": groups, "mem_map": mem_map})
+    return templates.TemplateResponse("my_groups.html", {"request": request, "me": me, "groups": groups, "mem_map": mem_map, "invites": invites})
 
 
 # Redirect 401s (e.g., from dependencies) to login for HTML routes

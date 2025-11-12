@@ -37,14 +37,20 @@
 </ul>
 
 <h3>Invite user</h3>
-<form method="post" action="/groups/{{ group.id }}/invite">
-  <div>
-    <label>Username or Email
-      <input name="identifier" required>
-    </label>
-  </div>
+<form method="post" action="/groups/{{ group.id }}/invite" class="inline-form">
+  <input type="text" name="invitee" placeholder="username or email" required>
   <button type="submit">Invite</button>
 </form>
 
 <p><a href="/groups/{{ group.id }}">Back to group</a></p>
 {% endblock %}
+
+
+{% if invited and invited|length > 0 %}
+<h3>Invited users (awaiting acceptance)</h3>
+<ul>
+  {% for mem, u, gl in invited %}
+    <li>{{ u.username }}</li>
+  {% endfor %}
+</ul>
+{% endif %}

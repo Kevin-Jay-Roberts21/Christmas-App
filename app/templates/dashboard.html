@@ -5,7 +5,6 @@
 
 <h2>Account</h2>
 
-<!-- Lists section -->
 <section class="card">
   <div class="card-header">
     <h3>Your Lists</h3>
@@ -27,7 +26,6 @@
   {% endif %}
 </section>
 
-<!-- Groups section -->
 <section class="card">
   <div class="card-header">
     <h3>Your Groups</h3>
@@ -41,7 +39,7 @@
         {% set mem = mem_map.get(g.id) %}
         <li>
           <strong>{{ g.name }}</strong>
-          {% if mem and not mem.is_approved and not mem.is_denied %}
+          {% if mem and not mem.is_approved and not mem.is_denied and not mem.is_invite %}
             <span class="tag">Pending</span>
           {% elif mem and mem.is_denied %}
             <span class="tag" style="background:#fee2e2;color:#991b1b;">Denied</span>

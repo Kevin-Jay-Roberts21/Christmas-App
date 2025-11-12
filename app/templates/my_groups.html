@@ -10,11 +10,14 @@
   {# Build invites list: pending + not denied + came from leader #}
   {% set invites = [] %}
   {% for g in groups %}
+  {% set mem = mem_map.get(g.id) %}
+  {% if not (mem and mem.is_invite and not mem.is_approved and not mem.is_denied) %}
     {% set mem = mem_map.get(g.id) %}
     {% if mem and (not mem.is_approved) and (not mem.is_denied) and mem.is_invite %}
       {% set _ = invites.append((g, mem)) %}
     {% endif %}
-  {% endfor %}
+    {% endif %}
+{% endfor %}
 
   {% if invites|length == 0 %}
     <p>No invitations right now.</p>
