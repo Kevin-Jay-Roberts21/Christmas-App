@@ -2,48 +2,68 @@
 {% block content %}
 <h2>My Groups</h2>
 
+
 <section class="card">
   <div class="card-header">
     <h3>Invitations for you</h3>
   </div>
+  {# Build invites list: pending + not denied + came from leader #}
+  {% set invites = [] %}
+  {% for g in groups %}
+  {% set mem = mem_map.get(g.id) %}
+  {% if not (mem and mem.is_invite and not mem.is_approved and not mem.is_denied) %}
+    {% set mem = mem_map.get(g.id) %}
+    {% if mem and (not mem.is_approved) and (not mem.is_denied) and mem.is_invite %}
+      {% set _ = invites.append((g, mem)) %}
+    {% endif %}
+    {% endif %}
+{% endfor %}
 
-  {% if invites and invites|length > 0 %}
-    <ul class="list">
-      {% for mem in invites %}
-        {% set g = inv_group_map.get(mem.group_id) %}
+  {% if invites|length == 0 %}
+    <p>No invitations right now.</p>
+  {% else %}
+    <ul>
+      {% for g, mem in invites %}
         <li>
-          <strong>{{ g.name if g else ('Group #' ~ mem.group_id) }}</strong>
-          <form method="post" action="/groups/{{ mem.group_id }}/accept_invite" style="display:inline;margin-left:8px;">
-            <label>Choose a list to share:
+          <strong>{{ g.name }}</strong>
+          <form method="post" action="/groups/{{ g.id }}/accept_invite" style="display:inline-block; margin-left:8px;">
+            <label style="margin-right:8px;">Select your list
               <select name="selected_list_id" required>
-                {% for gl in my_lists %}
+                {% for gl in me.lists %}
                   <option value="{{ gl.id }}">{{ gl.name }}</option>
                 {% endfor %}
               </select>
             </label>
-            <button class="btn">Accept</button>
+            <button class="btn" type="submit">Accept</button>
           </form>
-          <form method="post" action="/groups/{{ mem.group_id }}/decline_invite" style="display:inline;margin-left:6px;">
-            <button class="btn btn-outline">Decline</button>
+          <form method="post" action="/groups/{{ g.id }}/decline_invite" style="display:inline-block; margin-left:6px;">
+            <button class="btn" type="submit">Decline</button>
           </form>
         </li>
       {% endfor %}
     </ul>
-  {% else %}
-    <div class="muted">No invitations at the moment.</div>
   {% endif %}
 </section>
 
-<section class="card" style="margin-top:1rem;">
+
+<section class="card">
   <div class="card-header">
-    <h3>You're in</h3>
+    <h3>Groups you’re in</h3>
+    <div>
+      <a class="btn" href="/groups/new">Create Group</a>
+      <a class="btn" href="/groups/join" style="margin-left:8px;">Join Group</a>
+    </div>
   </div>
-  {% if groups and groups|length > 0 %}
-    <ul class="list">
+
+  {% if groups|length == 0 %}
+    <p>You’re not in any groups yet. Create a new one or join an existing group.</p>
+  {% else %}
+    <ul>
       {% for g in groups %}
         {% set mem = mem_map.get(g.id) %}
         <li>
-          {% if mem and (not mem.is_approved) and (not mem.is_denied) and (not mem.is_invite) %}
+          {% set mem = mem_map.get(g.id) %}
+          {% if mem and not mem.is_approved and not mem.is_denied %}
             <span>{{ g.name }}</span> <span class="tag">Pending</span>
           {% elif mem and mem.is_denied %}
             <span>{{ g.name }}</span> <span class="tag" style="background:#fee2e2;color:#991b1b;">Denied</span>
@@ -52,13 +72,15 @@
             </form>
           {% else %}
             <a href="/groups/{{ g.id }}">{{ g.name }}</a>
-            {% if g.leader_id == me.id %}<span class="tag">Leader</span>{% endif %}
+            {% if g.leader_id == me.id %}<span class="tag">Leader</span>{% else %}
+              <form method="post" action="/groups/{{ g.id }}/leave" style="display:inline;margin-left:6px;">
+                <button class="btn btn-outline" title="Leave group">Leave</button>
+              </form>
+            {% endif %}
           {% endif %}
         </li>
       {% endfor %}
     </ul>
-  {% else %}
-    <div class="muted">You haven't joined any groups yet.</div>
   {% endif %}
 </section>
 {% endblock %}

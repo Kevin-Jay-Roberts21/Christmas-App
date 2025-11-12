@@ -2,6 +2,12 @@
 {% block content %}
 <h2>{{ group.name }} {% if group.leader_id == me.id %}<span style="font-size:.8em;">(You are the leader)</span>{% endif %}</h2>
 
+{% if group.leader_id != me.id %}
+<form method="post" action="/groups/{{ group.id }}/leave" style="margin:0.5rem 0 1rem;">
+  <button class="btn btn-outline">Leave group</button>
+</form>
+{% endif %}
+
 {% if info %}
 <p style="padding:.5rem; background:#ecfeff; border:1px solid #06b6d4; border-radius:.5rem;">{{ info }}</p>
 {% endif %}
