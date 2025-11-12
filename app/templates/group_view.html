@@ -1,50 +1,99 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>{{ group.name }} {% if group.leader_id == me.id %}<span style="font-size:.8em;">(You are the leader)</span>{% endif %}</h2>
-
-{% if group.leader_id != me.id %}
-<form method="post" action="/groups/{{ group.id }}/leave" style="margin:0.5rem 0 1rem;">
-  <button class="btn btn-outline">Leave group</button>
-</form>
-{% endif %}
+<h2>
+  {{ group.name }}
+  {% if group.leader_id == me.id %}
+    <span style="font-size:.8em;">(You are the leader)</span>
+  {% endif %}
+</h2>
 
 {% if info %}
-<p style="padding:.5rem; background:#ecfeff; border:1px solid #06b6d4; border-radius:.5rem;">{{ info }}</p>
+  <p style="padding:.5rem; background:#ecfeff; border:1px solid #06b6d4; border-radius:.5rem;">{{ info }}</p>
 {% endif %}
+
+<p class="muted" style="font-size:.85rem; margin:.5rem 0 1rem;">
+  Legend:
+  🎁 = item they <strong>really want</strong>,
+  🦌 = item someone else added on their behalf,
+  ☐ = available (no one has claimed it yet),
+  ☑ = already being gifted.
+</p>
 
 <h3>Members</h3>
 <ul>
   {% for u in members %}
     <li>
       {% if u.id == group.leader_id %}⭐ {% endif %}
-      <a href="/lists/{{ user_list_map[u.id].id if user_list_map.get(u.id) else '' }}">
+      {% set gl = user_list_map.get(u.id) %}
+      {% if gl %}
+        <a href="/lists/{{ gl.id }}">{{ u.username }}</a>
+      {% else %}
         {{ u.username }}
-      </a>
-      {% if not user_list_map.get(u.id) %}
-        <em>(no list visible here)</em>
       {% endif %}
     </li>
+  {% else %}
+    <li><em>No members yet.</em></li>
   {% endfor %}
 </ul>
 
-{% if me.id == group.leader_id %}
-  <p><a href="/groups/{{ group.id }}/manage">Manage requests & invites</a></p>
-{% endif %}
-
+<h3>Wish lists</h3>
 {% for gl in visible_lists %}
-  <h3>{{ gl.name }}{% if gl.owner_id == me.id %} (your list){% endif %}</h3>
-  <ul>
-    {% for it in items_for_list[gl.id] %}
-      <li>
-        {% if it.is_present %}🎁 {% endif %}
-        {% if gl.owner_id != me.id and it.added_by_id != gl.owner_id %}🦌 {% endif %}
-        {{ it.name }}
-        {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
-        {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}
-      </li>
-    {% else %}
-      <li><em>No items yet.</em></li>
-    {% endfor %}
-  </ul>
+  <section class="card" style="margin-top:1rem;">
+    <div class="card-header">
+      <h4>
+        {{ gl.name }}
+        {% set owner = owner_map.get(gl.owner_id) %}
+        {% if owner %}<span style="font-size:.85em;"> — for {{ owner.username }}</span>{% endif %}
+        {% if gl.owner_id == me.id %}
+          <span class="tag">Your list</span>
+        {% endif %}
+      </h4>
+    </div>
+    <ul class="list">
+      {% for it in items_for_list[gl.id] %}
+        <li>
+          {% if it.is_present %}🎁 {% endif %}
+          {% if gl.owner_id != me.id and it.added_by_id != gl.owner_id %}🦌 {% endif %}
+          {{ it.name }}
+          {% if it.url %} — <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>{% endif %}
+          {% if it.notes %} — <em>{{ it.notes }}</em>{% endif %}
+
+          {# Claim / unclaim UI: only for lists that are NOT mine #}
+          {% if gl.owner_id != me.id %}
+            {% set owner = owner_map.get(gl.owner_id) %}
+            {% if it.id in my_claimed_item_ids %}
+              <form method="post"
+                    action="/claims/{{ group.id }}/unclaim/{{ it.id }}"
+                    style="display:inline;margin-left:.5rem;">
+                <button class="btn btn-outline btn-sm"
+                        title="Click to uncheck / stop getting this item">
+                  ☑
+                </button>
+              </form>
+              <span class="tag" style="margin-left:.25rem;">You are getting this</span>
+            {% elif it.id in claimed_item_ids %}
+              <span class="tag" style="margin-left:.5rem; background:#bbf7d0; color:#166534;">
+                ☑ Already being gifted
+              </span>
+            {% else %}
+              <form method="post"
+                    action="/claims/{{ group.id }}/claim/{{ it.id }}"
+                    style="display:inline;margin-left:.5rem;"
+                    onsubmit="return confirm('Confirm that you want to get this item for {{ owner.username if owner else 'this person' }}?');">
+                <button class="btn btn-outline btn-sm"
+                        title="Click to check this item">
+                  ☐
+                </button>
+              </form>
+            {% endif %}
+          {% endif %}
+        </li>
+      {% else %}
+        <li><em>No items yet.</em></li>
+      {% endfor %}
+    </ul>
+  </section>
+{% else %}
+  <p class="muted">No shared lists in this group yet.</p>
 {% endfor %}
 {% endblock %}

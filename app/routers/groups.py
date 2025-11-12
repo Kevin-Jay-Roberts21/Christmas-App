@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, or_
 from app.deps import get_session, get_current_user
-from app.models import Group, Membership, ListGroup, GiftList, Item, User
+from app.models import Group, Membership, ListGroup, GiftList, Item, User, Claim
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 templates = Jinja2Templates(directory="app/templates")
@@ -361,6 +361,12 @@ def group_view(
     for gl in visible_lists:
         user_list_map.setdefault(gl.owner_id, gl)
 
+    # Claims for this group
+    claims = session.exec(select(Claim).where(Claim.group_id == g.id)).all()
+    claimed_item_ids = {c.item_id for c in claims}
+    my_claimed_item_ids = {c.item_id for c in claims if c.claimer_id == user.id}
+    owner_map = {u.id: u for u in member_users}
+
     return templates.TemplateResponse(
         "group_view.html",
         {
@@ -371,6 +377,9 @@ def group_view(
             "items_for_list": items_for_list,
             "members": member_users,
             "user_list_map": user_list_map,
+            "owner_map": owner_map,
+            "claimed_item_ids": claimed_item_ids,
+            "my_claimed_item_ids": my_claimed_item_ids,
             "info": info,
         },
     )
@@ -444,78 +453,3 @@ def remove_denied(
         session.commit()
 
     return redirect_get("/groups")
-
-@router.post("/{group_id}/kick/{member_id}")
-def kick_member(
-    group_id: int,
-    member_id: int,
-    session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
-):
-    """
-    Group leader can remove a member from the group.
-    """
-    g = session.get(Group, group_id)
-    if not g:
-        return redirect_get("/groups")
-
-    if g.leader_id != user.id:
-        raise HTTPException(status_code=403, detail="Only the leader can remove members.")
-
-    if member_id == g.leader_id:
-        return redirect_get(f"/groups/{g.id}", {"error": "You cannot remove yourself as leader."})
-
-    mem = session.exec(
-        select(Membership).where(Membership.group_id == g.id, Membership.user_id == member_id)
-    ).first()
-    if not mem:
-        return redirect_get(f"/groups/{g.id}", {"info": "Member not found."})
-
-    # Remove any shared list entry for this member in this group
-    if mem.selected_list_id:
-        lg = session.exec(
-            select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == mem.selected_list_id)
-        ).first()
-        if lg:
-            session.delete(lg)
-
-    session.delete(mem)
-    session.commit()
-    return redirect_get(f"/groups/{g.id}", {"info": "Member removed from group."})
-
-
-@router.post("/{group_id}/leave")
-def leave_group(
-    group_id: int,
-    session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
-):
-    """
-    Allow a user to leave a group they are in.
-    """
-    g = session.get(Group, group_id)
-    if not g:
-        return redirect_get("/groups")
-
-    mem = session.exec(
-        select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)
-    ).first()
-    if not mem:
-        return redirect_get("/groups")
-
-    if g.leader_id == user.id:
-        # For now, require leader to transfer or delete group instead of leaving
-        return redirect_get(f"/groups/{g.id}", {"error": "Leaders cannot leave their own group."})
-
-    # Remove any shared list entry for this member in this group
-    if mem.selected_list_id:
-        lg = session.exec(
-            select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == mem.selected_list_id)
-        ).first()
-        if lg:
-            session.delete(lg)
-
-    session.delete(mem)
-    session.commit()
-    return redirect_get("/groups", {"info": f"You left {g.name}."})
-
