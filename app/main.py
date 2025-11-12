@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from jose import jwt, JWTError
 from sqlmodel import Session, select
 
-from app.db import engine, init_db
+from app.db import engine, init_db          # <-- keep this
 from app.models import User, GiftList, Membership, Group, ListGroup
 from app.deps import get_session, get_current_user
 from app.routers import users, lists, groups, claims
@@ -14,6 +14,11 @@ from app.auth import SECRET, ALGO
 
 app = FastAPI(title="Christmas App")
 templates = Jinja2Templates(directory="app/templates")
+
+# Create tables if they don't exist (e.g., after deleting the DB file)
+@app.on_event("startup")
+def on_startup():
+    init_db()   # <-- this line ensures 'user', 'giftlist', etc. are created
 
 # --- Attach current user to request.state.user (optional, convenient) ---
 class AuthStateMiddleware(BaseHTTPMiddleware):
