@@ -11,9 +11,12 @@
 <body>
   <header class="topbar">
     <h1>🎄 Christmas App</h1>
-    <form action="/auth/logout" method="post" class="logout">
-      <button>Logout</button>
-    </form>
+    {% if me %}
+      <div class="welcome">Welcome {{ me.username }}!</div>
+      <form action="/auth/logout" method="post" class="logout">
+        <button>Logout</button>
+      </form>
+    {% endif %}
   </header>
   <nav class="tabs" role="tablist">
     <a href="/about"  class="tab {% if request.url.path.startswith('/about') %}active{% endif %}">About</a>

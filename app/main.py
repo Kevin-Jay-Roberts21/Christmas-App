@@ -111,7 +111,8 @@ def account(request: Request):
 
 @app.get("/about")
 def about(request: Request):
-    return templates.TemplateResponse("about.html", {"request": request})
+    me = getattr(request.state, "user", None)
+    return templates.TemplateResponse("about.html", {"request": request, "me": me})
 
 
 @app.get("/lists")
