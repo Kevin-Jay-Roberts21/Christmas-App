@@ -116,7 +116,7 @@
           <label for="surprise-{{ gl.id }}"
                  class="muted"
                  style="display:block; font-size:.85rem; margin-bottom:.25rem;">
-            Add a gift for {{ owner.username if owner else 'this person' }}:
+            Add a surprise gift for {{ owner.username if owner else 'this person' }}:
           </label>
           <div style="display:flex; gap:.5rem; align-items:center;">
             <input id="surprise-{{ gl.id }}"
@@ -125,7 +125,9 @@
                    placeholder="Gift name (only you and the group can see this)"
                    required
                    style="flex:1;">
-            <button class="btn btn-outline btn-sm" type="submit">
+            <button class="btn btn-outline btn-sm"
+                    type="submit"
+                    onclick="return confirm('Confirm that you want to get this item for {{ owner.username if owner else 'this person' }}?');">
               Add surprise
             </button>
           </div>
