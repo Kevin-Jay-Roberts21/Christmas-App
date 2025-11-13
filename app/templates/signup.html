@@ -1,23 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Sign up</h2>
+
 {% if error %}
-<div style="padding:.75rem; border:1px solid #e11d48; background:#fee2e2; color:#991b1b; margin-bottom:1rem; border-radius:.5rem;">
-  {{ error }}
-</div>
+  <p style="padding:.5rem; background:#fef2f2; border:1px solid #fca5a5; border-radius:.5rem;">
+    {{ error }}
+  </p>
 {% endif %}
 
 <form method="post" action="/auth/signup">
-  <label>Email
-    <input name="email" type="email" required value="{{ email | default('') }}">
-  </label><br>
-  <label>Username
-    <input name="username" required value="{{ username | default('') }}">
-  </label><br>
-  <label>Password
-    <input name="password" type="password" required>
-  </label><br>
-  <button type="submit">Create account</button>
+  <div>
+    <label>Email
+      <input type="email" name="email" value="{{ email }}" required>
+    </label>
+  </div>
+  <div>
+    <label>Username
+      <input type="text" name="username" value="{{ username }}" required>
+    </label>
+  </div>
+  <div>
+    <label>Password
+      <input type="password" name="password" required>
+    </label>
+  </div>
+  <div>
+    <label>Confirm password
+      <input type="password" name="password_confirm" required>
+    </label>
+  </div>
+  <button type="submit">Sign up</button>
 </form>
 
 <p>Already have an account? <a href="/auth/login">Log in</a></p>

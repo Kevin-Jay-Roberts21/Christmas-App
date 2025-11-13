@@ -77,25 +77,57 @@ def signup(
     email: str = Form(...),
     username: str = Form(...),
     password: str = Form(...),
+    password_confirm: str = Form(...),   # 👈 NEW
     session: Session = Depends(get_session),
 ):
     # Normalize for comparison (optional but recommended)
     email_norm = email.strip()
     username_norm = username.strip()
 
-    if session.exec(select(User).where(User.username == username_norm)).first():
-        # Stay on signup with error, keep their inputs
+    # 1) Passwords must match
+    if password != password_confirm:
         return redirect_get(
             "/auth/signup",
-            {"error": "Username already taken", "email": email_norm, "username": username_norm},
+            {
+                "error": "Passwords do not match",
+                "email": email_norm,
+                "username": username_norm,
+            },
+        )
+
+    # (optional) basic length check
+    if len(password) < 8:
+        return redirect_get(
+            "/auth/signup",
+            {
+                "error": "Password must be at least 8 characters long",
+                "email": email_norm,
+                "username": username_norm,
+            },
+        )
+
+    # 2) Username/email uniqueness (same as before)
+    if session.exec(select(User).where(User.username == username_norm)).first():
+        return redirect_get(
+            "/auth/signup",
+            {
+                "error": "Username already taken",
+                "email": email_norm,
+                "username": username_norm,
+            },
         )
 
     if session.exec(select(User).where(User.email == email_norm)).first():
         return redirect_get(
             "/auth/signup",
-            {"error": "Email already registered", "email": email_norm, "username": username_norm},
+            {
+                "error": "Email already registered",
+                "email": email_norm,
+                "username": username_norm,
+            },
         )
 
+    # 3) Create user
     u = User(email=email_norm, username=username_norm, password_hash=hash_pwd(password))
     session.add(u)
     session.commit()
@@ -105,6 +137,7 @@ def signup(
     resp = redirect_get("/account")
     resp.set_cookie("access_token", token, httponly=True, samesite="lax")
     return resp
+
 
 
 @router.post("/logout")
