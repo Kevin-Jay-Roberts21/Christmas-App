@@ -425,6 +425,75 @@ def group_view(
         },
     )
 
+@router.post("/{group_id}/surprise/{list_id}")
+def add_surprise_item(
+    group_id: int,
+    list_id: int,
+    name: str = Form(...),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g:
+        raise HTTPException(404, "Group not found")
+
+    # must be leader or approved member (same rule as group_view)
+    mem = session.exec(
+        select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)
+    ).first()
+    if not (user.id == g.leader_id or (mem and mem.is_approved)):
+        raise HTTPException(403, "Not approved to add gifts in this group")
+
+    gl = session.get(GiftList, list_id)
+    if not gl:
+        raise HTTPException(404, "List not found")
+
+    # ensure this list is actually shared in this group
+    link = session.exec(
+        select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == gl.id)
+    ).first()
+    if not link:
+        raise HTTPException(403, "That list is not shared in this group")
+
+    # you shouldn't add a surprise item to your own list
+    if gl.owner_id == user.id:
+        raise HTTPException(400, "You cannot add a surprise item to your own list")
+
+    gift_name = (name or "").strip()
+    if not gift_name:
+        return redirect_get(f"/groups/{group_id}", {"info": "Please provide a name for the gift."})
+
+    # Create hidden item on their list.
+    # - owner_hidden=True so the list owner never sees it.
+    # - added_by_id = you (the giver).
+    it = Item(
+        list_id=gl.id,
+        name=gift_name,
+        url=None,
+        notes=None,
+        is_present=False,      # no 🎁 icon for these; per your request
+        added_by_id=user.id,
+        owner_hidden=True,
+    )
+    session.add(it)
+    session.commit()  # so it.id is available
+
+    # Automatically claim it for this user in this group
+    existing_claim = session.exec(
+        select(Claim).where(Claim.item_id == it.id, Claim.group_id == g.id)
+    ).first()
+    if not existing_claim:
+        claim = Claim(item_id=it.id, group_id=g.id, claimer_id=user.id)
+        session.add(claim)
+        session.commit()
+
+    owner = session.get(User, gl.owner_id)
+    owner_name = owner.username if owner else "this person"
+
+    return redirect_get(
+        f"/groups/{group_id}",
+        {"info": f"Added a surprise gift for {owner_name}."},
+    )
 
 @router.post("/{group_id}/accept_invite")
 def accept_invite(

@@ -108,6 +108,29 @@
         <li><em>No items yet.</em></li>
       {% endfor %}
     </ul>
+      {% if gl.owner_id != me.id %}
+        {% set owner = owner_map.get(gl.owner_id) %}
+        <form method="post"
+              action="/groups/{{ group.id }}/surprise/{{ gl.id }}"
+              style="margin-top:.75rem;">
+          <label for="surprise-{{ gl.id }}"
+                 class="muted"
+                 style="display:block; font-size:.85rem; margin-bottom:.25rem;">
+            Add a gift for {{ owner.username if owner else 'this person' }}:
+          </label>
+          <div style="display:flex; gap:.5rem; align-items:center;">
+            <input id="surprise-{{ gl.id }}"
+                   type="text"
+                   name="name"
+                   placeholder="Gift name (only you and the group can see this)"
+                   required
+                   style="flex:1;">
+            <button class="btn btn-outline btn-sm" type="submit">
+              Add surprise
+            </button>
+          </div>
+        </form>
+      {% endif %}
   </section>
 {% else %}
   <p class="muted">No shared lists in this group yet.</p>
