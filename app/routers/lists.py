@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from app.deps import get_session, get_current_user
-from app.models import GiftList, Item, User, Membership, ListGroup
+from app.models import GiftList, Item, User, Membership, ListGroup, Claim
 
 router = APIRouter(prefix="/lists", tags=["lists"])
 templates = Jinja2Templates(directory="app/templates")
@@ -149,10 +149,25 @@ def delete_item(
     if not it or it.list_id != list_id:
         raise HTTPException(404, "Item not found")
 
-    # If the owner deletes their own item, hide it from the owner,
-    # but let others still see it (🦌 rule). If the owner deletes an
-    # item added by others, just keep it hidden from the owner by design.
-    it.owner_hidden = True
-    session.add(it)
+    # Check if this item is currently claimed by anyone in any group.
+    has_claims = session.exec(
+        select(Claim).where(Claim.item_id == it.id)
+    ).first() is not None
+
+    if has_claims:
+        # Special case:
+        # - Someone has checked (claimed) this item in a group.
+        # - The owner deleting it should only hide it from themselves.
+        # - Others in the group still see it:
+        #   - ☑ because of the Claim
+        #   - 🦌 because owner_hidden = True
+        it.owner_hidden = True
+        session.add(it)
+    else:
+        # Normal case:
+        # - No one has claimed this item.
+        # - Deleting it should remove it for EVERYONE.
+        session.delete(it)
+
     session.commit()
     return redirect_get(f"/lists/{list_id}/edit")
