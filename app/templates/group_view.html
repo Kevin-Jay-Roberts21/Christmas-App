@@ -7,6 +7,22 @@
   {% endif %}
 </h2>
 
+{% if group.leader_id == me.id %}
+  <p style="margin-bottom:1rem;">
+    <a href="/groups/{{ group.id }}/manage" class="btn">
+      Manage members & invites
+    </a>
+    <form method="post"
+          action="/groups/{{ group.id }}/delete"
+          style="display:inline;margin-left:6px;">
+      <button class="btn btn-outline"
+              onclick="return confirm('Delete this group for everyone?');">
+        Delete group
+      </button>
+    </form>
+  </p>
+{% endif %}
+
 {% if info %}
   <p style="padding:.5rem; background:#ecfeff; border:1px solid #06b6d4; border-radius:.5rem;">{{ info }}</p>
 {% endif %}

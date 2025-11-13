@@ -315,6 +315,47 @@ def invite_member(
     session.commit()
     return redirect_get(f"/groups/{g.id}/manage", {"info": f"Invitation sent to {target.username}."})
 
+@router.post("/{group_id}/delete")
+def delete_group(
+    group_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g:
+        raise HTTPException(404, "Group not found")
+
+    if g.leader_id != user.id:
+        raise HTTPException(403, "Only the leader can delete this group")
+
+    # Delete all memberships for this group
+    memberships = session.exec(
+        select(Membership).where(Membership.group_id == g.id)
+    ).all()
+    for mem in memberships:
+        session.delete(mem)
+
+    # Delete all visible-list links for this group
+    links = session.exec(
+        select(ListGroup).where(ListGroup.group_id == g.id)
+    ).all()
+    for lk in links:
+        session.delete(lk)
+
+    # Delete all claims in this group
+    claims = session.exec(
+        select(Claim).where(Claim.group_id == g.id)
+    ).all()
+    for c in claims:
+        session.delete(c)
+
+    # Finally delete the group itself
+    session.delete(g)
+    session.commit()
+
+    # Everyone is now “not part of the group” anymore
+    return redirect_get("/groups")
+
 
 # ---------- Group view -----------------------------------------------------
 

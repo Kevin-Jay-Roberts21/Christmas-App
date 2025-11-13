@@ -72,7 +72,24 @@
             </form>
           {% else %}
             <a href="/groups/{{ g.id }}">{{ g.name }}</a>
-            {% if g.leader_id == me.id %}<span class="tag">Leader</span>{% else %}
+            {% if g.leader_id == me.id %}
+              <span class="tag">Leader</span>
+              <!-- Manage members & invites -->
+              <a href="/groups/{{ g.id }}/manage"
+                 class="btn btn-outline"
+                 style="margin-left:6px;">
+                Manage
+              </a>
+              <!-- Delete group -->
+              <form method="post"
+                    action="/groups/{{ g.id }}/delete"
+                    style="display:inline;margin-left:6px;">
+                <button class="btn btn-outline"
+                        onclick="return confirm('Delete this group for everyone?');">
+                  Delete
+                </button>
+              </form>
+            {% else %}
               <form method="post" action="/groups/{{ g.id }}/leave" style="display:inline;margin-left:6px;">
                 <button class="btn btn-outline" title="Leave group">Leave</button>
               </form>
