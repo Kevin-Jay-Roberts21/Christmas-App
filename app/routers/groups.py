@@ -349,6 +349,7 @@ def kick_member(
         select(GiftList).where(GiftList.owner_id == user_id)
     ).all()
     for gl in user_lists:
+        # Remove the list-group link (so their list is no longer shown in this group)
         lg = session.exec(
             select(ListGroup).where(
                 ListGroup.group_id == g.id,
@@ -357,6 +358,30 @@ def kick_member(
         ).first()
         if lg:
             session.delete(lg)
+
+        # Delete surprise gifts for this user that belong to THIS group:
+        # - items on their list
+        # - hidden from them
+        # - added by someone else
+        surprise_items = session.exec(
+            select(Item).where(
+                Item.list_id == gl.id,
+                Item.owner_hidden == True,
+                Item.added_by_id != gl.owner_id,
+            )
+        ).all()
+        for it in surprise_items:
+            # Only consider those that actually have claims in this group
+            it_claims = session.exec(
+                select(Claim).where(
+                    Claim.item_id == it.id,
+                    Claim.group_id == g.id,
+                )
+            ).all()
+            if it_claims:
+                for c in it_claims:
+                    session.delete(c)
+                session.delete(it)
 
     # Remove any claims they made in this group
     claims = session.exec(
@@ -403,6 +428,7 @@ def leave_group(
         select(GiftList).where(GiftList.owner_id == user.id)
     ).all()
     for gl in user_lists:
+        # Remove list-group link
         lg = session.exec(
             select(ListGroup).where(
                 ListGroup.group_id == g.id,
@@ -411,6 +437,26 @@ def leave_group(
         ).first()
         if lg:
             session.delete(lg)
+
+        # Delete surprise gifts for this user that belong to THIS group
+        surprise_items = session.exec(
+            select(Item).where(
+                Item.list_id == gl.id,
+                Item.owner_hidden == True,
+                Item.added_by_id != gl.owner_id,
+            )
+        ).all()
+        for it in surprise_items:
+            it_claims = session.exec(
+                select(Claim).where(
+                    Claim.item_id == it.id,
+                    Claim.group_id == g.id,
+                )
+            ).all()
+            if it_claims:
+                for c in it_claims:
+                    session.delete(c)
+                session.delete(it)
 
     # Remove any claims they made in this group
     claims = session.exec(
