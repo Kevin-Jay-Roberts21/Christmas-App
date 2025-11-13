@@ -7,7 +7,7 @@ from jose import jwt, JWTError
 from sqlmodel import Session, select
 
 from app.db import engine, init_db          # <-- keep this
-from app.models import User, GiftList, Membership, Group, ListGroup
+from app.models import User, GiftList, Membership, Group, ListGroup, Claim, Item
 from app.deps import get_session, get_current_user
 from app.routers import users, lists, groups, claims
 from app.auth import SECRET, ALGO
@@ -146,6 +146,102 @@ def my_groups(request: Request, session: Session = Depends(get_session), me: Use
     inv_group_map = {g.id: g for g in inv_groups}
     return templates.TemplateResponse("my_groups.html", {"request": request, "me": me, "groups": groups, "mem_map": mem_map, "invites": invites, "my_lists": my_lists, "inv_group_map": inv_group_map})
 
+@app.post("/account/delete")
+def delete_account(
+    request: Request,
+    session: Session = Depends(get_session),
+    me: User = Depends(get_current_user),
+):
+    # 1) Delete all groups this user leads
+    leader_groups = session.exec(
+        select(Group).where(Group.leader_id == me.id)
+    ).all()
+    for g in leader_groups:
+        # delete memberships in this group
+        mems = session.exec(
+            select(Membership).where(Membership.group_id == g.id)
+        ).all()
+        for mem in mems:
+            session.delete(mem)
+
+        # delete list-group links
+        lgs = session.exec(
+            select(ListGroup).where(ListGroup.group_id == g.id)
+        ).all()
+        for lg in lgs:
+            session.delete(lg)
+
+        # delete all claims in this group
+        claims = session.exec(
+            select(Claim).where(Claim.group_id == g.id)
+        ).all()
+        for c in claims:
+            session.delete(c)
+
+        # finally delete the group itself
+        session.delete(g)
+
+    # 2) Remove this user from any other groups (as a member)
+    mems = session.exec(
+        select(Membership).where(Membership.user_id == me.id)
+    ).all()
+    for mem in mems:
+        # remove this user's claims in that group
+        claims = session.exec(
+            select(Claim).where(
+                Claim.group_id == mem.group_id,
+                Claim.claimer_id == me.id,
+            )
+        ).all()
+        for c in claims:
+            session.delete(c)
+
+        session.delete(mem)
+
+    # 3) Delete all lists owned by this user (and their items + claims + links)
+    user_lists = session.exec(
+        select(GiftList).where(GiftList.owner_id == me.id)
+    ).all()
+    for gl in user_lists:
+        # remove list-group links for this list
+        lgs = session.exec(
+            select(ListGroup).where(ListGroup.list_id == gl.id)
+        ).all()
+        for lg in lgs:
+            session.delete(lg)
+
+        # delete items and any claims on those items
+        items = session.exec(
+            select(Item).where(Item.list_id == gl.id)
+        ).all()
+        for it in items:
+            item_claims = session.exec(
+                select(Claim).where(Claim.item_id == it.id)
+            ).all()
+            for c in item_claims:
+                session.delete(c)
+            session.delete(it)
+
+        session.delete(gl)
+
+    # 4) Safety cleanup: any remaining claims made by this user
+    stray_claims = session.exec(
+        select(Claim).where(Claim.claimer_id == me.id)
+    ).all()
+    for c in stray_claims:
+        session.delete(c)
+
+    # 5) Delete the user account itself
+    session.delete(me)
+    session.commit()
+
+    # 6) "Log out" by deleting the JWT cookie, just like /auth/logout
+    resp = RedirectResponse(
+        url="/auth/login?info=Your+account+has+been+deleted",
+        status_code=303,
+    )
+    resp.delete_cookie("access_token")
+    return resp
 
 # Redirect 401s (e.g., from dependencies) to login for HTML routes
 @app.exception_handler(HTTPException)

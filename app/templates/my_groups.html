@@ -86,7 +86,9 @@
               </form>
             {% else %}
               <form method="post" action="/groups/{{ g.id }}/leave" style="display:inline;margin-left:6px;">
-                <button class="btn btn-outline" title="Leave group">Leave</button>
+                <button class="btn btn-outline btn-sm" type="submit"
+                      onclick="return confirm('Confirm that you want to leave this group?');">Leave
+                </button>
               </form>
             {% endif %}
           {% endif %}
