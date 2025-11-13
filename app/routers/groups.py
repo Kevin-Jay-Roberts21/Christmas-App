@@ -260,6 +260,54 @@ def deny_member(
     session.commit()
     return redirect_get(f"/groups/{g.id}/manage")
 
+@router.post("/{group_id}/kick/{user_id}")
+def kick_member(
+    group_id: int,
+    user_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    # Only the leader can remove members
+    g = session.get(Group, group_id)
+    if not g or g.leader_id != user.id:
+        raise HTTPException(403, "Leader only")
+
+    # Find this user's membership in the group
+    mem = session.exec(
+        select(Membership).where(
+            Membership.group_id == g.id,
+            Membership.user_id == user_id,
+        )
+    ).first()
+    if not mem:
+        raise HTTPException(404, "Membership not found")
+
+    # Remove their membership
+    session.delete(mem)
+
+    # If their list is shared in this group, hide it too
+    if mem.selected_list_id:
+        lg = session.exec(
+            select(ListGroup).where(
+                ListGroup.group_id == g.id,
+                ListGroup.list_id == mem.selected_list_id,
+            )
+        ).first()
+        if lg:
+            session.delete(lg)
+
+    # Remove any claims they made in this group
+    claims = session.exec(
+        select(Claim).where(
+            Claim.group_id == g.id,
+            Claim.claimer_id == user_id,
+        )
+    ).all()
+    for c in claims:
+        session.delete(c)
+
+    session.commit()
+    return redirect_get(f"/groups/{g.id}/manage")
 
 @router.post("/{group_id}/invite")
 def invite_member(
