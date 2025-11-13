@@ -13,7 +13,6 @@
       {% for gl in lists %}
         <li>
           <a href="/lists/{{ gl.id }}">{{ gl.name }}</a>
-          <span class="muted">({{ gl.items|length if gl.items is defined else '' }} items)</span>
           &nbsp;—&nbsp;<a href="/lists/{{ gl.id }}/edit">Edit</a>
         </li>
       {% endfor %}
