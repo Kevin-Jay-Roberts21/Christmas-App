@@ -2,6 +2,17 @@
 {% block content %}
 <h2>Manage "{{ group.name }}"</h2>
 
+{% if error %}
+  <p style="padding:.5rem; background:#fef2f2; border:1px solid #fca5a5; border-radius:.5rem;">
+    {{ error }}
+  </p>
+{% endif %}
+{% if info %}
+  <p style="padding:.5rem; background:#ecfeff; border:1px solid #06b6d4; border-radius:.5rem;">
+    {{ info }}
+  </p>
+{% endif %}
+
 <h3>Approved members</h3>
 <ul>
   {% for mem, u, gl in approved %}
@@ -47,15 +58,14 @@
   <button type="submit">Invite</button>
 </form>
 
+{% if invited and invited|length > 0 %}
+  <h3>Invited users (awaiting acceptance)</h3>
+  <ul>
+    {% for mem, u, gl in invited %}
+      <li>{{ u.username }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
 <p><a href="/groups/{{ group.id }}">Back to group</a></p>
 {% endblock %}
-
-
-{% if invited and invited|length > 0 %}
-<h3>Invited users (awaiting acceptance)</h3>
-<ul>
-  {% for mem, u, gl in invited %}
-    <li>{{ u.username }}</li>
-  {% endfor %}
-</ul>
-{% endif %}

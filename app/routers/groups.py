@@ -26,8 +26,18 @@ def group_new_form(
     user: User = Depends(get_current_user)
 ):
     my_lists = session.exec(select(GiftList).where(GiftList.owner_id == user.id)).all()
-    return templates.TemplateResponse("group_new.html", {"request": request, "me": user, "my_lists": my_lists})
-
+    error = request.query_params.get("error")
+    info = request.query_params.get("info")
+    return templates.TemplateResponse(
+        "group_new.html",
+        {
+            "request": request,
+            "me": user,
+            "my_lists": my_lists,
+            "error": error,
+            "info": info,
+        },
+    )
 
 @router.post("/new")
 def group_new(
@@ -36,12 +46,24 @@ def group_new(
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    if session.exec(select(Group).where(Group.name == name)).first():
-        raise HTTPException(400, "Group name already exists")
+    name = name.strip()
+
+    # case-insensitive check for an existing group with this name
+    existing = session.exec(
+        select(Group).where(Group.name.ilike(name))
+    ).first()
+    if existing:
+        return redirect_get(
+            "/groups/new",
+            {"error": f"A group named '{name}' already exists."},
+        )
 
     gl = session.get(GiftList, selected_list_id)
     if not gl or gl.owner_id != user.id:
-        raise HTTPException(400, "Invalid list selection")
+        return redirect_get(
+            "/groups/new",
+            {"error": "Invalid list selection."},
+        )
 
     g = Group(name=name, leader_id=user.id)  # leader = creator
     session.add(g)
@@ -49,14 +71,24 @@ def group_new(
     session.refresh(g)
 
     # leader auto-membership approved
-    session.add(Membership(group_id=g.id, user_id=user.id, selected_list_id=gl.id, is_approved=True))
+    session.add(
+        Membership(
+            group_id=g.id,
+            user_id=user.id,
+            selected_list_id=gl.id,
+            is_approved=True,
+        )
+    )
 
     # show leader's list
-    if not session.exec(select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == gl.id)).first():
+    if not session.exec(
+        select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == gl.id)
+    ).first():
         session.add(ListGroup(group_id=g.id, list_id=gl.id))
 
     session.commit()
     return redirect_get(f"/groups/{g.id}")
+
 
 
 # ---------- Search ---------------------------------------------------------
@@ -131,7 +163,28 @@ def group_join_request(
     ).first()
 
     if mem:
-        # Update to a *request* state (not an invite)
+        # Already a member
+        if mem.is_approved and not mem.is_denied:
+            return redirect_get(
+                "/groups",
+                {"info": "You are already in this group."},
+            )
+
+        # Already have a pending join request
+        if not mem.is_approved and not mem.is_denied and not mem.is_invite:
+            return redirect_get(
+                "/groups/join",
+                {"info": "You have already requested to join this group. Please wait for the leader to approve."},
+            )
+
+        # Already have an invitation
+        if mem.is_invite and not mem.is_approved and not mem.is_denied:
+            return redirect_get(
+                "/groups",
+                {"info": "You already have an invitation to this group. Check the 'Invitations for you' section."},
+            )
+
+        # Otherwise (e.g. previously denied) → turn it into a fresh join request
         mem.selected_list_id = gl.id
         mem.is_approved = False
         mem.is_denied = False
@@ -149,6 +202,7 @@ def group_join_request(
 
     session.commit()
     return redirect_get("/groups/join", {"info": "Request sent to the group leader."})
+
 
 
 # ---------- Leader manage: approve / invite --------------------------------
@@ -195,11 +249,14 @@ def manage_group(
         )
     ).all()
 
-    def user_of(mem):  # helpers for template
+    def user_of(mem):
         return session.get(User, mem.user_id)
 
     def list_of(mem):
         return session.get(GiftList, mem.selected_list_id) if mem.selected_list_id else None
+
+    error = request.query_params.get("error")
+    info = request.query_params.get("info")
 
     return templates.TemplateResponse(
         "group_manage.html",
@@ -210,6 +267,8 @@ def manage_group(
             "pending": [(mem, user_of(mem), list_of(mem)) for mem in pending],
             "approved": [(mem, user_of(mem), list_of(mem)) for mem in approved],
             "invited": [(mem, user_of(mem), list_of(mem)) for mem in invited],
+            "error": error,
+            "info": info,
         },
     )
 
@@ -285,12 +344,15 @@ def kick_member(
     # Remove their membership
     session.delete(mem)
 
-    # If their list is shared in this group, hide it too
-    if mem.selected_list_id:
+    # Remove ANY of this user's lists that are linked to this group
+    user_lists = session.exec(
+        select(GiftList).where(GiftList.owner_id == user_id)
+    ).all()
+    for gl in user_lists:
         lg = session.exec(
             select(ListGroup).where(
                 ListGroup.group_id == g.id,
-                ListGroup.list_id == mem.selected_list_id,
+                ListGroup.list_id == gl.id,
             )
         ).first()
         if lg:
@@ -309,6 +371,60 @@ def kick_member(
     session.commit()
     return redirect_get(f"/groups/{g.id}/manage")
 
+@router.post("/{group_id}/leave")
+def leave_group(
+    group_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    g = session.get(Group, group_id)
+    if not g:
+        raise HTTPException(404, "Group not found")
+
+    # Leader can't "leave" their own group — they should delete it instead
+    if g.leader_id == user.id:
+        raise HTTPException(400, "Leader must delete the group instead of leaving it")
+
+    # Find *this* user's membership
+    mem = session.exec(
+        select(Membership).where(
+            Membership.group_id == g.id,
+            Membership.user_id == user.id,
+        )
+    ).first()
+    if not mem:
+        raise HTTPException(404, "You are not a member of this group")
+
+    # Remove membership
+    session.delete(mem)
+
+    # Remove ANY of this user's lists that are linked to this group
+    user_lists = session.exec(
+        select(GiftList).where(GiftList.owner_id == user.id)
+    ).all()
+    for gl in user_lists:
+        lg = session.exec(
+            select(ListGroup).where(
+                ListGroup.group_id == g.id,
+                ListGroup.list_id == gl.id,
+            )
+        ).first()
+        if lg:
+            session.delete(lg)
+
+    # Remove any claims they made in this group
+    claims = session.exec(
+        select(Claim).where(
+            Claim.group_id == g.id,
+            Claim.claimer_id == user.id,
+        )
+    ).all()
+    for c in claims:
+        session.delete(c)
+
+    session.commit()
+    return redirect_get("/groups")
+
 @router.post("/{group_id}/invite")
 def invite_member(
     group_id: int,
@@ -326,10 +442,17 @@ def invite_member(
     ).first()
 
     if not target:
-        return redirect_get(f"/groups/{g.id}/manage", {"error": "Whoops, that user does not exist."})
+        # customized error text
+        return redirect_get(
+            f"/groups/{g.id}/manage",
+            {"error": f"Could not find user '{invitee}'."},
+        )
 
     if target.id == user.id:
-        return redirect_get(f"/groups/{g.id}/manage", {"error": "You can’t invite yourself."})
+        return redirect_get(
+            f"/groups/{g.id}/manage",
+            {"error": "You can’t invite yourself."},
+        )
 
     # existing membership?
     mem = session.exec(
@@ -341,14 +464,24 @@ def invite_member(
 
     # already in the group
     if mem and mem.is_approved and not mem.is_denied:
-        return redirect_get(f"/groups/{g.id}/manage", {"info": "That user is already in the group."})
+        return redirect_get(
+            f"/groups/{g.id}/manage",
+            {"info": "That user is already in the group."},
+        )
+
+    # already has a pending invite → don’t send another
+    if mem and mem.is_invite and not mem.is_approved and not mem.is_denied:
+        return redirect_get(
+            f"/groups/{g.id}/manage",
+            {"info": f"{target.username} has already been invited and hasn’t responded yet."},
+        )
 
     if mem:
-        # switch any prior state to a fresh invite
+        # Some other prior state (e.g. they requested to join, or previously denied)
         mem.is_approved = False
         mem.is_denied = False
         mem.is_invite = True
-        # keep selected_list_id as-is (usually None)
+        # keep selected_list_id as-is (usually None for a pure invite)
     else:
         mem = Membership(
             group_id=g.id,
@@ -361,7 +494,10 @@ def invite_member(
         session.add(mem)
 
     session.commit()
-    return redirect_get(f"/groups/{g.id}/manage", {"info": f"Invitation sent to {target.username}."})
+    return redirect_get(
+        f"/groups/{g.id}/manage",
+        {"info": f"Invitation sent to {target.username}."},
+    )
 
 @router.post("/{group_id}/delete")
 def delete_group(
@@ -554,7 +690,12 @@ def accept_invite(
     if not g:
         raise HTTPException(404, "Group not found")
 
-    mem = session.exec(select(Membership).where(Membership.group_id == g.id, Membership.user_id == user.id)).first()
+    mem = session.exec(
+        select(Membership).where(
+            Membership.group_id == g.id,
+            Membership.user_id == user.id
+        )
+    ).first()
     if not mem:
         raise HTTPException(404, "Invite not found")
     if mem.is_approved:
@@ -566,13 +707,19 @@ def accept_invite(
 
     mem.selected_list_id = gl.id
     mem.is_approved = True
+    mem.is_invite = False      # <-- important line
+    mem.is_denied = False
 
-    if not session.exec(select(ListGroup).where(ListGroup.group_id == g.id, ListGroup.list_id == gl.id)).first():
+    if not session.exec(
+        select(ListGroup).where(
+            ListGroup.group_id == g.id,
+            ListGroup.list_id == gl.id
+        )
+    ).first():
         session.add(ListGroup(group_id=g.id, list_id=gl.id))
 
     session.commit()
     return redirect_get("/groups", {"info": "Invite accepted."})
-
 
 @router.post("/{group_id}/decline_invite")
 def decline_invite(
