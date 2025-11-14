@@ -3,8 +3,7 @@ import os
 from jose import jwt
 from passlib.hash import pbkdf2_sha256
 
-CHRISTMAS_SECRET = os.getenv("CHRISTMAS_SECRET", "change-me")  # set in env for production
-
+SECRET = os.getenv("CHRISTMAS_SECRET", "change-me")  # set in env for production
 ALGO = "HS256"
 TOKEN_MINUTES = int(os.getenv("TOKEN_MINUTES", str(60 * 24 * 14)))
 
