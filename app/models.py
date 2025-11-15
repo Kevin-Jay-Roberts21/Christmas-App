@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+from pydantic import validator
 
 RECENT_WINDOW_MIN = 60 * 24  # 24h
 
@@ -14,6 +15,11 @@ class User(SQLModel, table=True):
 
     lists: List["GiftList"] = Relationship(back_populates="owner")
     memberships: List["Membership"] = Relationship(back_populates="user")
+
+    # 🔥 NEW: normalize email
+    @validator("email", pre=True)
+    def normalize_email(cls, v):
+        return v.lower().strip()
 
 class GiftList(SQLModel, table=True):
     __tablename__ = "giftlist"
@@ -29,6 +35,16 @@ class Item(SQLModel, table=True):
     __tablename__ = "item"
     id: Optional[int] = Field(default=None, primary_key=True)
     list_id: int = Field(foreign_key="giftlist.id", index=True)
+
+    # If not null, this item only "belongs" to a single group
+    # (used for surprise / reindeer gifts).
+    # Normal list items have group_id = None and are visible from
+    # every group where the list is shared.
+    group_id: Optional[int] = Field(
+        default=None,
+        foreign_key="group.id",
+        index=True,
+    )
 
     # Content
     name: str
@@ -50,6 +66,7 @@ class Item(SQLModel, table=True):
 
     gift_list: GiftList = Relationship(back_populates="items")
     claims: List["Claim"] = Relationship(back_populates="item")
+
 
 
 class Group(SQLModel, table=True):

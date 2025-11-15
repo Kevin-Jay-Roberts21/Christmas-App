@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from app.deps import get_session, get_current_user
 from app.models import GiftList, Item, User, Membership, ListGroup, Claim
 
@@ -49,18 +49,27 @@ def list_view(
     if not visible_group_ids:
         raise HTTPException(403, "This list is not visible in any of your groups")
 
-    is_member_some_visible_group = session.exec(
-        select(Membership).where(
+    # Which of those visible groups is the user actually a member of?
+    user_group_ids = session.exec(
+        select(Membership.group_id).where(
             Membership.user_id == user.id,
             Membership.group_id.in_(visible_group_ids),
         )
-    ).first()
+    ).all()
 
-    if not is_member_some_visible_group:
+    if not user_group_ids:
         raise HTTPException(403, "You don’t have access to this list")
 
-    # Others see all items
-    items = session.exec(select(Item).where(Item.list_id == list_id)).all()
+    # Others see:
+    # - Global items (group_id is NULL)
+    # - Plus surprise items for any group they belong to for this list
+    items = session.exec(
+        select(Item).where(
+            Item.list_id == list_id,
+            or_(Item.group_id == None, Item.group_id.in_(user_group_ids)),  # noqa: E711
+        )
+    ).all()
+
     return templates.TemplateResponse(
         "list_view.html",
         {"request": request, "me": user, "list": gl, "items": items, "is_owner": False},

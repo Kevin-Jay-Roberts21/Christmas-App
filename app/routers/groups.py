@@ -482,9 +482,15 @@ def invite_member(
     if not g or g.leader_id != user.id:
         raise HTTPException(status_code=403, detail="Leader only")
 
-    # find user by username OR email
+    # Normalize input
+    ident_raw = invitee.strip()
+    ident_email = ident_raw.lower()
+
+    # find user by username OR email (email is case-insensitive)
     target = session.exec(
-        select(User).where(or_(User.username == invitee, User.email == invitee))
+        select(User).where(
+            or_(User.username == ident_raw, User.email == ident_email)
+        )
     ).first()
 
     if not target:
@@ -544,6 +550,7 @@ def invite_member(
         f"/groups/{g.id}/manage",
         {"info": f"Invitation sent to {target.username}."},
     )
+
 
 @router.post("/{group_id}/delete")
 def delete_group(
@@ -616,10 +623,21 @@ def group_view(
     items_for_list = {}
     for gl in visible_lists:
         if gl.owner_id == user.id:
-            q = select(Item).where(Item.list_id == gl.id, Item.added_by_id == user.id, Item.owner_hidden == False)  # noqa: E712
+            # Owner: only see your own non-hidden items (no surprises)
+            q = select(Item).where(
+                Item.list_id == gl.id,
+                Item.added_by_id == user.id,
+                Item.owner_hidden == False,  # noqa: E712
+            )
         else:
-            q = select(Item).where(Item.list_id == gl.id)
+            # Non-owner: see global items (group_id is NULL) + any surprise
+            # items that belong to *this* group.
+            q = select(Item).where(
+                Item.list_id == gl.id,
+                or_(Item.group_id == None, Item.group_id == g.id),  # noqa: E711
+            )
         items_for_list[gl.id] = session.exec(q).all()
+
 
     # members (approved only)
     approved_members = session.exec(
@@ -632,11 +650,26 @@ def group_view(
     for gl in visible_lists:
         user_list_map.setdefault(gl.owner_id, gl)
 
-    # Claims for this group
-    claims = session.exec(select(Claim).where(Claim.group_id == g.id)).all()
-    claimed_item_ids = {c.item_id for c in claims}
-    my_claimed_item_ids = {c.item_id for c in claims if c.claimer_id == user.id}
+    # Claims in THIS group (for "You are getting this" + unclaim)
+    group_claims = session.exec(
+        select(Claim).where(Claim.group_id == g.id)
+    ).all()
+    my_claimed_item_ids = {
+        c.item_id for c in group_claims if c.claimer_id == user.id
+    }
+
+    # Claims in ANY group for the items shown here
+    all_item_ids = {it.id for items in items_for_list.values() for it in items}
+    if all_item_ids:
+        all_claims = session.exec(
+            select(Claim).where(Claim.item_id.in_(all_item_ids))
+        ).all()
+        claimed_item_ids = {c.item_id for c in all_claims}
+    else:
+        claimed_item_ids = set()
+
     owner_map = {u.id: u for u in member_users}
+
 
     return templates.TemplateResponse(
         "group_view.html",
@@ -698,6 +731,7 @@ def add_surprise_item(
     # - added_by_id = you (the giver).
     it = Item(
         list_id=gl.id,
+        group_id=g.id,         # surprise gift is *scoped* to this group
         name=gift_name,
         url=None,
         notes=None,

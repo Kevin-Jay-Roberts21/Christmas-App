@@ -58,17 +58,27 @@ def login(
     password: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    ident = username.strip()
-    from sqlmodel import or_
+    ident_raw = username.strip()
+
+    # If they typed an email, normalize to lowercase
+    ident_email = ident_raw.lower()
+
+    # Username check is case-sensitive (as before),
+    # email check is case-insensitive via the lowercased version
     user = session.exec(
-        select(User).where(or_(User.username == ident, User.email == ident))
+        select(User).where(
+            or_(User.username == ident_raw, User.email == ident_email)
+        )
     ).first()
+
     if not user or not verify_pwd(password, user.password_hash):
         return redirect_get("/auth/login", {"error": "Invalid username/email or password"})
+
     token = make_token(user.id)
     resp = redirect_get("/account")
     resp.set_cookie("access_token", token, httponly=True, samesite="lax")
     return resp
+
 
 
 @router.post("/signup")
@@ -77,11 +87,11 @@ def signup(
     email: str = Form(...),
     username: str = Form(...),
     password: str = Form(...),
-    password_confirm: str = Form(...),   # 👈 NEW
+    password_confirm: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    # Normalize for comparison (optional but recommended)
-    email_norm = email.strip()
+    # Normalize for comparison
+    email_norm = email.strip().lower()
     username_norm = username.strip()
 
     # 1) Passwords must match
@@ -95,7 +105,6 @@ def signup(
             },
         )
 
-    # (optional) basic length check
     if len(password) < 8:
         return redirect_get(
             "/auth/signup",
@@ -106,7 +115,7 @@ def signup(
             },
         )
 
-    # 2) Username/email uniqueness (same as before)
+    # 2) Username/email uniqueness
     if session.exec(select(User).where(User.username == username_norm)).first():
         return redirect_get(
             "/auth/signup",
@@ -127,8 +136,12 @@ def signup(
             },
         )
 
-    # 3) Create user
-    u = User(email=email_norm, username=username_norm, password_hash=hash_pwd(password))
+    # 3) Create user (User.email validator will lowercase too, but this is fine)
+    u = User(
+        email=email_norm,
+        username=username_norm,
+        password_hash=hash_pwd(password),
+    )
     session.add(u)
     session.commit()
     session.refresh(u)
