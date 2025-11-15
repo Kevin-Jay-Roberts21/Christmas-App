@@ -9,3 +9,4 @@ itsdangerous
 httpx
 python-multipart
 bcrypt
+psycopg2-binary
