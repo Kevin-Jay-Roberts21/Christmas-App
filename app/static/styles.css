@@ -127,3 +127,30 @@ button[disabled] { background:#9ca3af; cursor:not-allowed; }
   position: relative; /* needed for the active underline accent */
 }
 
+/* --- Groups page button layout --- */
+.group-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Mobile: stack the buttons vertically so they don't squish */
+@media (max-width: 640px) {
+  .card-header {
+    align-items: flex-start;
+  }
+
+  .group-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 220px;  /* optional: keeps them from getting too wide */
+    margin-top: 8px;
+  }
+
+  .group-buttons .btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+
