@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -41,6 +41,21 @@ app.add_middleware(AuthStateMiddleware)
 
 # --- Static files ---
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    return FileResponse(
+        "app/static/manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    # Service worker must be served from the origin to control the whole app
+    return FileResponse(
+        "app/static/sw.js",
+        media_type="application/javascript",
+    )
 
 # --- Routers ---
 app.include_router(users.router)

@@ -1,24 +1,33 @@
-// sw.js
-const CACHE_NAME = "christmas-cache-v3"; // bump this!
+// app/static/sw.js
+const CACHE_NAME = "christmas-cache-v4"; // bump version when you change this file
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(["/", "/static/styles.css?v=3", "/manifest.webmanifest"])
-    )
+const ASSETS = [
+  "/",                         // main page
+  "/about",                    // about page
+  "/static/styles.css?v=3",    // your CSS
+  "/manifest.webmanifest"      // manifest served from root (see main.py route)
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
+      Promise.all(
+        keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key)))
+      )
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (e) => {
-  e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
+  );
 });
