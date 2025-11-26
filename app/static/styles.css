@@ -152,5 +152,87 @@ button[disabled] { background:#9ca3af; cursor:not-allowed; }
     text-align: center;
   }
 }
+/* --- App-style mobile tweaks --- */
+body {
+  line-height: 1.5;
+}
+
+/* Make the header & content feel more like a native app on small screens */
+@media (max-width: 640px) {
+
+  /* Top header: stack and shrink a bit */
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 16px 12px;
+  }
+
+  .topbar h1 {
+    font-size: 1.4rem;     /* smaller so it doesn’t dominate */
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .topbar .welcome {
+    font-size: 0.9rem;
+    opacity: 0.95;
+  }
+
+  .logout button {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  /* Main content spacing */
+  .container {
+    margin: 12px auto 20px;
+    padding: 0 12px 24px;
+  }
+
+  .card {
+    padding: 14px 14px 16px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    margin: 8px 0 12px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    margin: 4px 0 10px;
+  }
+
+  /* “My Groups” create/join area already stacks; this just softens it a bit */
+  .group-buttons .btn {
+    padding: 10px 12px;
+    font-size: 0.95rem;
+  }
+
+  /* Gift lists: add breathing room between items */
+  .list {
+    padding-left: 1.1rem;
+  }
+
+  .list li {
+    padding: 4px 0 6px;
+  }
+
+  .list li .tag {
+    margin-top: 2px;
+    display: inline-block;
+  }
+
+  /* “Add surprise gift” text box spacing */
+  input[type="text"] {
+    font-size: 0.95rem;
+  }
+
+  .footer {
+    f
+
 
 
