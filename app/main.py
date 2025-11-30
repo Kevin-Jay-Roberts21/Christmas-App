@@ -66,11 +66,9 @@ app.include_router(claims.router)
 # --- Home: redirect based on auth ---
 @app.get("/")
 def home(request: Request):
-    # Always show the public About page at the root
-    return templates.TemplateResponse(
-        "about.html",
-        {"request": request, "me": getattr(request.state, "user", None)},
-    )
+    if request.state.user:
+        return RedirectResponse(url="/account", status_code=303)
+    return RedirectResponse(url="/auth/login", status_code=303)
 
 # --- Simple account dashboard (uses your templates) ---
 
