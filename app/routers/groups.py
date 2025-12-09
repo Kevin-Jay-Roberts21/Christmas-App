@@ -677,7 +677,7 @@ def group_view(
     owner_map = {u.id: u for u in member_users}
 
 
-        return templates.TemplateResponse(
+    return templates.TemplateResponse(
         "group_view.html",
         {
             "request": request,
