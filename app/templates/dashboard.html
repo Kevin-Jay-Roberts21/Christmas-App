@@ -2,6 +2,8 @@
 {% block content %}
 {% set mem_map = mem_map|default({}) %}
 {% set list_for_group = list_for_group|default({}) %}
+{% set gifts_by_person = gifts_by_person|default({}) %}
+{% set giftee_map = giftee_map|default({}) %}
 
 <h2>Account</h2>
 
@@ -57,6 +59,34 @@
     </ul>
   {% endif %}
 </section>
+
+<section class="card">
+  <div class="card-header">
+    <h3>The Gifts You're Giving</h3>
+  </div>
+
+  {% if gifts_by_person and gifts_by_person|length > 0 %}
+    {% for giftee_id, items in gifts_by_person.items() %}
+      {% set person = giftee_map.get(giftee_id) %}
+      <div style="margin-top: 1rem;">
+        <strong>{{ person.username if person else "Unknown person" }}</strong>
+        <ul style="margin: .25rem 0 0 1rem;">
+          {% for it in items %}
+            <li>
+              {{ it.name }}
+              {% if it.url %}
+                – <a href="{{ it.url }}" target="_blank" rel="noopener">link</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>You haven’t committed to any gifts yet. Once you check something in a group, they’ll show up here.</p>
+  {% endif %}
+</section>
+
 
 <hr style="margin:2rem 0;">
 

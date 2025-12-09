@@ -108,6 +108,53 @@ def account(request: Request):
                     list_for_group[g.id] = gl
                 groups_for_list.setdefault(mem.selected_list_id, []).append(g)
 
+                # --- The gifts you're giving (all items you have claimed anywhere) ---
+        my_claims = s.exec(
+            select(Claim).where(Claim.claimer_id == user.id)
+        ).all()
+
+        gifts_by_person = {}
+        giftee_map = {}
+
+        if my_claims:
+            # All item ids you have claimed
+            item_ids = {c.item_id for c in my_claims}
+
+            # Fetch those items
+            items = s.exec(
+                select(Item).where(Item.id.in_(item_ids))
+            ).all()
+            item_by_id = {it.id: it for it in items}
+
+            # Lists associated with those items
+            list_ids = {it.list_id for it in items}
+            lists_for_items = s.exec(
+                select(GiftList).where(GiftList.id.in_(list_ids))
+            ).all()
+            list_by_id = {gl.id: gl for gl in lists_for_items}
+
+            # Group items by the person who owns the list (the person you're gifting)
+            giftee_ids = set()
+
+            for cl in my_claims:
+                item = item_by_id.get(cl.item_id)
+                if not item:
+                    continue
+                gl = list_by_id.get(item.list_id)
+                if not gl:
+                    continue
+
+                giftee_id = gl.owner_id
+                giftee_ids.add(giftee_id)
+                gifts_by_person.setdefault(giftee_id, []).append(item)
+
+            # Fetch all those giftee users
+            if giftee_ids:
+                giftees = s.exec(
+                    select(User).where(User.id.in_(giftee_ids))
+                ).all()
+                giftee_map = {u.id: u for u in giftees}
+
         return templates.TemplateResponse(
             "dashboard.html",
             {
@@ -118,8 +165,11 @@ def account(request: Request):
                 "groups_for_list": groups_for_list,
                 "list_for_group": list_for_group,
                 "mem_map": mem_map,
+                "gifts_by_person": gifts_by_person,
+                "giftee_map": giftee_map,
             },
         )
+
 
 
 @app.get("/about")
