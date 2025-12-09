@@ -650,28 +650,34 @@ def group_view(
     for gl in visible_lists:
         user_list_map.setdefault(gl.owner_id, gl)
 
-    # Claims in THIS group (for "You are getting this" + unclaim)
+        # Claims in THIS group (for "You are getting this" + unclaim button)
     group_claims = session.exec(
         select(Claim).where(Claim.group_id == g.id)
     ).all()
-    my_claimed_item_ids = {
+    my_group_claimed_item_ids = {
         c.item_id for c in group_claims if c.claimer_id == user.id
     }
 
-    # Claims in ANY group for the items shown here
+    # Claims in ANY group for the items shown here (for global "already gifted" state)
     all_item_ids = {it.id for items in items_for_list.values() for it in items}
     if all_item_ids:
         all_claims = session.exec(
             select(Claim).where(Claim.item_id.in_(all_item_ids))
         ).all()
+        # Items YOU have claimed anywhere
+        my_any_claimed_item_ids = {
+            c.item_id for c in all_claims if c.claimer_id == user.id
+        }
+        # Items that are claimed by someone (you or others)
         claimed_item_ids = {c.item_id for c in all_claims}
     else:
+        my_any_claimed_item_ids = set()
         claimed_item_ids = set()
 
     owner_map = {u.id: u for u in member_users}
 
 
-    return templates.TemplateResponse(
+        return templates.TemplateResponse(
         "group_view.html",
         {
             "request": request,
@@ -683,10 +689,12 @@ def group_view(
             "user_list_map": user_list_map,
             "owner_map": owner_map,
             "claimed_item_ids": claimed_item_ids,
-            "my_claimed_item_ids": my_claimed_item_ids,
+            "my_group_claimed_item_ids": my_group_claimed_item_ids,
+            "my_any_claimed_item_ids": my_any_claimed_item_ids,
             "info": info,
         },
     )
+
 
 @router.post("/{group_id}/surprise/{list_id}")
 def add_surprise_item(
